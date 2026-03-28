@@ -1,0 +1,46 @@
+require("dotenv").config();
+
+const express = require("express");
+const cors = require("cors");
+const cookieParser = require("cookie-parser");
+const authRoutes = require("./routes/authRoutes");
+const photosRoutes = require("./routes/photosRoutes");
+const { errorHandler } = require("./middleware/errorHandler");
+
+const app = express();
+const PORT = Number(process.env.PORT) || 2026;
+
+const corsOrigin = process.env.CORS_ORIGIN;
+const corsOptions = {
+  credentials: true,
+  origin:
+    corsOrigin && corsOrigin.length > 0
+      ? corsOrigin.split(",").map((s) => s.trim())
+      : true,
+};
+
+app.use(cors(corsOptions));
+app.use(express.json());
+app.use(cookieParser());
+
+app.get("/health", (_req, res) => {
+  res.json({ ok: true });
+});
+
+app.use("/api/auth", authRoutes);
+app.use("/api/photos", photosRoutes);
+
+app.use(errorHandler);
+
+app.listen(PORT, () => {
+  const base = `http://localhost:${PORT}`;
+  console.log(`Photogallery API listening on ${PORT}`);
+  console.log("");
+  console.log("Available routes:");
+  console.log(`  GET  ${base}/health`);
+  console.log(`  POST ${base}/api/auth/signup`);
+  console.log(`  POST ${base}/api/auth/login`);
+  console.log(`  POST ${base}/api/auth/logout`);
+  console.log(`  GET  ${base}/api/photos`);
+  console.log(`  POST ${base}/api/photos/upload  (multipart field: image; optional: title)`);
+});

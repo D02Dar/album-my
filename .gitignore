@@ -1,0 +1,10 @@
+node_modules/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+dist/
+cookies.txt
+body.json
+login.json
