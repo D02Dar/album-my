@@ -22,6 +22,11 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: "/bibliography",
+      name: "bibliography",
+      component: () => import("../views/BibliographyView.vue"),
+    },
+    {
       path: "/:pathMatch(.*)*",
       redirect: "/",
     },

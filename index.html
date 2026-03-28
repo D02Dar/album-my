@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bibliography - Strict Grid Reveal</title>
+    <style>
+        /* 基础重置与深色主题 */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: #ddd;
+            padding: 3rem 5%;
+            overflow-x: hidden;
+        }
+
+        .site-header { margin-bottom: 3rem; border-bottom: 1px solid #333; padding-bottom: 1rem; }
+        .site-header h1 { font-size: 1.1rem; letter-spacing: 2px; font-weight: 400; color: #999; }
+
+        /* ==============================
+           核心：严格的网格布局
+           ============================== */
+        .biblio-grid {
+            display: grid;
+            /* 默认 PC 端为 5 列，与你的截图一致 */
+            grid-template-columns: repeat(5, 1fr);
+            /* 给外层容器加上左边和上边的线 */
+            border-top: 1px solid #333;
+            border-left: 1px solid #333;
+        }
+
+        /* 单个格子的样式 */
+        .biblio-cell {
+            padding: 2rem 1rem;
+            /* 给每个格子加上右边和下边的线，配合外层容器形成完整的网格 */
+            border-right: 1px solid #333;
+            border-bottom: 1px solid #333;
+            
+            display: flex;
+            flex-direction: column;
+
+            /* 追逐加载动画的初始状态 */
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        }
+
+        /* 动画触发后的状态 */
+        .biblio-cell.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* 书籍封面 */
+        .book-cover {
+            height: 180px; /* 固定高度，确保排版整齐 */
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: flex-end; /* 图片靠下对齐 */
+        }
+        .book-cover img {
+            max-height: 100%;
+            max-width: 100%;
+            object-fit: contain;
+            filter: grayscale(100%);
+            transition: filter 0.3s ease;
+            cursor: pointer;
+        }
+        .book-cover img:hover {
+            filter: grayscale(0%);
+        }
+
+        /* 书籍信息排版 */
+        .book-title {
+            font-size: 1.1rem;
+            font-weight: 400;
+            color: #eee;
+            margin-bottom: 1rem;
+            letter-spacing: 0.5px;
+            line-height: 1.3;
+        }
+
+        .book-meta {
+            font-size: 0.85rem;
+            color: #888;
+            margin-bottom: 0.3rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        /* 针对 "出版年" 和 "出版社" 标签稍微调暗一点 */
+        .meta-label {
+            color: #555; 
+            min-width: 3.5rem;
+        }
+
+        /* 响应式设计：在较小的屏幕上减少列数 */
+        @media (max-width: 1200px) { .biblio-grid { grid-template-columns: repeat(4, 1fr); } }
+        @media (max-width: 900px) { .biblio-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 600px) { .biblio-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 400px) { .biblio-grid { grid-template-columns: repeat(1, 1fr); } }
+    </style>
+</head>
+<body>
+
+    <header class="site-header">
+        <h1>BIBLIOGRAPHY</h1>
+    </header>
+
+    <main class="biblio-grid" id="gridContainer">
+        </main>
+
+    <script>
+        // 1. 模拟数据 (使用几张不同的竖排/横排占位图测试自适应)
+        const mockData = [
+            { title: "Daido Moriyama", year: "2007/6", publisher: "Rm Verlag, S.L.", img: "https://images.unsplash.com/photo-1549488331-48350163359d?w=200&h=250&fit=crop" },
+            { title: "記録7号", year: "2007/5", publisher: "Akio Nagasawa...", img: "https://images.unsplash.com/photo-1563220473-b265691d1e4e?w=200&h=280&fit=crop" },
+            { title: "ハワイ", year: "2007/2", publisher: "月曜社", img: "https://images.unsplash.com/photo-1549887552-cb1071d3e5ca?w=200&h=200&fit=crop" },
+            { title: "大阪＋", year: "2007/2", publisher: "月曜社", img: "https://images.unsplash.com/photo-1533105079780-92b9be482077?w=200&h=260&fit=crop" },
+            { title: "凶区 Erotica", year: "2007/2", publisher: "朝日新聞社", img: "https://images.unsplash.com/photo-1628189689408-592a3b022143?w=200&h=240&fit=crop" }
+        ];
+
+        // 循环生成 15 个格子填满屏幕
+        const gridContainer = document.getElementById('gridContainer');
+        for (let i = 0; i < 15; i++) {
+            const data = mockData[i % mockData.length];
+            const cellHTML = `
+                <article class="biblio-cell">
+                    <div class="book-cover"><img src="${data.img}" alt="Cover"></div>
+                    <h2 class="book-title">${data.title}</h2>
+                    <div class="book-meta"><span class="meta-label">出版年</span> <span>${data.year}</span></div>
+                    <div class="book-meta"><span class="meta-label">出版社</span> <span>${data.publisher}</span></div>
+                </article>
+            `;
+            gridContainer.insertAdjacentHTML('beforeend', cellHTML);
+        }
+
+        // 2. 追逐式加载逻辑 (Queue Controller)
+        document.addEventListener("DOMContentLoaded", () => {
+            const cells = document.querySelectorAll('.biblio-cell');
+            let animationQueue = [];
+            let isAnimating = false;
+
+            const processQueue = () => {
+                if (animationQueue.length === 0) {
+                    isAnimating = false;
+                    return;
+                }
+                isAnimating = true;
+                const target = animationQueue.shift();
+                target.classList.add('visible');
+                // 每个格子出现的时间差，100毫秒非常丝滑
+                setTimeout(processQueue, 100); 
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        animationQueue.push(entry.target);
+                        observer.unobserve(entry.target);
+                    }
+                });
+                if (!isAnimating && animationQueue.length > 0) {
+                    processQueue();
+                }
+            }, { rootMargin: '0px 0px -20px 0px', threshold: 0.05 });
+
+            cells.forEach(cell => observer.observe(cell));
+        });
+    </script>
+</body>
+</html>

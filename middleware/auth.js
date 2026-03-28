@@ -8,7 +8,16 @@ function requireAuth(req, res, next) {
     return res.status(500).json({ error: "Server misconfigured" });
   }
 
-  const token = req.cookies?.[COOKIE_NAME];
+  // 先从 cookie 中获取 token，如果没有则从 Authorization 请求头中获取
+  let token = req.cookies?.[COOKIE_NAME];
+  
+  if (!token) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      token = authHeader.slice(7);
+    }
+  }
+
   if (!token) {
     return res.status(401).json({ error: "Unauthorized" });
   }

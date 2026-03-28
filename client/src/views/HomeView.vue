@@ -15,6 +15,7 @@ async function onLogout() {
     <header class="site-header">
       <RouterLink to="/" class="site-header__brand">PHOTOGALLERY</RouterLink>
       <nav class="site-header__nav">
+        <RouterLink to="/bibliography">文献</RouterLink>
         <RouterLink v-if="!auth.isAuthenticated" to="/login">登录</RouterLink>
         <template v-else>
           <RouterLink to="/upload">上传</RouterLink>

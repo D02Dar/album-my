@@ -5,6 +5,7 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const authRoutes = require("./routes/authRoutes");
 const photosRoutes = require("./routes/photosRoutes");
+const bibliographyRoutes = require("./routes/bibliographyRoutes");
 const { errorHandler } = require("./middleware/errorHandler");
 
 const app = express();
@@ -38,6 +39,7 @@ app.get("/health", (_req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/photos", photosRoutes);
+app.use("/api/bibliography", bibliographyRoutes);
 
 app.use(errorHandler);
 
@@ -52,4 +54,7 @@ app.listen(PORT, () => {
   console.log(`  POST ${base}/api/auth/logout`);
   console.log(`  GET  ${base}/api/photos`);
   console.log(`  POST ${base}/api/photos/upload  (multipart field: image; optional: title)`);
+  console.log(`  GET  ${base}/api/bibliography`);
+  console.log(`  POST ${base}/api/bibliography (auth required)`);
+  console.log(`  DELETE ${base}/api/bibliography/:id (auth required)`);
 });
