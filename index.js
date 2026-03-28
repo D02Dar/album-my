@@ -11,12 +11,21 @@ const app = express();
 const PORT = Number(process.env.PORT) || 2026;
 
 const corsOrigin = process.env.CORS_ORIGIN;
+const defaultOrigins = [
+  'https://album-oufj3ixgx-zer002s-projects-e483d688.vercel.app',
+  'https://album-my.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000'
+];
+
 const corsOptions = {
   credentials: true,
   origin:
     corsOrigin && corsOrigin.length > 0
-      ? corsOrigin.split(",").map((s) => s.trim())
-      : true,
+      ? corsOrigin.split(",").map((s) => s.trim().replace(/\/$/, ''))
+      : defaultOrigins,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
 app.use(cors(corsOptions));
