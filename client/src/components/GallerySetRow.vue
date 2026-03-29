@@ -50,30 +50,30 @@ function onThumbClick(photo, e) {
 
 <style scoped>
 .set-row {
-  border-bottom: 1px solid rgba(238, 238, 238, 0.12);
+  border-bottom: 1px solid #333;
   transition: border-color 0.35s ease;
 }
 
 .set-row:hover {
-  border-bottom-color: #eeeeee;
+  border-bottom-color: #999;
 }
 
 .set-row__head {
-  padding: 1.75rem 0 1.25rem;
+  padding: 2rem 0 1.5rem;
 }
 
 .set-row__title {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: 0.68rem;
   font-weight: 400;
-  letter-spacing: 0.35em;
+  letter-spacing: 0.55em;
   text-transform: uppercase;
-  color: #999999;
+  color: #666;
   transition: color 0.35s ease;
 }
 
 .set-row__title--on {
-  color: #eeeeee;
+  color: #ddd;
 }
 
 .set-row__panel {
@@ -103,7 +103,7 @@ function onThumbClick(photo, e) {
 }
 
 .thumb {
-  border: 1px solid rgba(238, 238, 238, 0.2);
+  border: 1px solid #333;
   padding: 0;
   margin: 0;
   background: #1a1a1a;
@@ -114,7 +114,7 @@ function onThumbClick(photo, e) {
 }
 
 .thumb:hover {
-  border-color: #eeeeee;
+  border-color: #999;
 }
 
 .thumb img {

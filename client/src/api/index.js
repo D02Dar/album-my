@@ -17,8 +17,9 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
   
-  // FormData 时删除 Content-Type，让浏览器自动设置
+  // FormData 时删除 Content-Type，让浏览器自动设置 boundary
   if (config.data instanceof FormData) {
+    // 删除所有 Content-Type，让 axios 自动处理
     delete config.headers["Content-Type"];
   }
   return config;

@@ -1,4 +1,12 @@
+const path = require("path");
 const { supabaseAnon, getSupabaseAdmin } = require("../config/supabase");
+
+const BUCKET = "bibliography_covers";
+
+function safeBasename(originalname) {
+  const base = path.basename(originalname || "cover").replace(/[^\w.\-]+/g, "_");
+  return base.slice(0, 180) || "cover";
+}
 
 async function list(req, res, next) {
   try {
@@ -18,7 +26,7 @@ async function list(req, res, next) {
 
 async function add(req, res, next) {
   try {
-    const { title, publish_year, publisher, cover_url } = req.body;
+    const { title, publish_year, publisher } = req.body;
 
     // Validate required fields
     if (!title || !title.trim()) {
@@ -26,6 +34,30 @@ async function add(req, res, next) {
     }
 
     const admin = getSupabaseAdmin();
+    let cover_url = null;
+
+    // Upload cover image if provided
+    if (req.file?.buffer) {
+      const objectPath = `${Date.now()}-${safeBasename(req.file.originalname)}`;
+
+      const { error: uploadError } = await admin.storage
+        .from(BUCKET)
+        .upload(objectPath, req.file.buffer, {
+          contentType: req.file.mimetype || "application/octet-stream",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        return res.status(502).json({ error: uploadError.message });
+      }
+
+      // Generate public URL using the Supabase URL pattern
+      const supabaseUrl = process.env.SUPABASE_URL;
+      cover_url = `${supabaseUrl}/storage/v1/object/public/${BUCKET}/${objectPath}`;
+
+      console.log("Generated Cover URL:", cover_url); // Debug log
+    }
+
     const { data, error } = await admin
       .from("bibliography")
       .insert([
@@ -33,7 +65,7 @@ async function add(req, res, next) {
           title: title.trim(),
           publish_year: publish_year?.trim() || null,
           publisher: publisher?.trim() || null,
-          cover_url: cover_url?.trim() || null,
+          cover_url: cover_url,
         },
       ])
       .select();
@@ -57,13 +89,41 @@ async function remove(req, res, next) {
     }
 
     const admin = getSupabaseAdmin();
-    const { error } = await admin
+
+    // First, get the record to find the cover_url
+    const { data: record, error: fetchError } = await admin
+      .from("bibliography")
+      .select("cover_url")
+      .eq("id", id)
+      .single();
+
+    if (fetchError || !record) {
+      return res.status(404).json({ error: "Bibliography record not found" });
+    }
+
+    // Delete the file from storage if it exists
+    if (record.cover_url) {
+      try {
+        // Extract the file path from the URL
+        const urlParts = record.cover_url.split("/object/public/");
+        if (urlParts.length > 1) {
+          const filePath = decodeURIComponent(urlParts[1].split("/").slice(1).join("/"));
+          await admin.storage.from(BUCKET).remove([filePath]);
+        }
+      } catch (storageErr) {
+        console.error("Error deleting file from storage:", storageErr);
+        // Continue with database deletion even if storage deletion fails
+      }
+    }
+
+    // Delete from database
+    const { error: deleteError } = await admin
       .from("bibliography")
       .delete()
       .eq("id", id);
 
-    if (error) {
-      return res.status(502).json({ error: error.message });
+    if (deleteError) {
+      return res.status(502).json({ error: deleteError.message });
     }
 
     return res.json({ message: "Bibliography record deleted successfully" });

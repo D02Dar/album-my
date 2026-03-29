@@ -40,13 +40,14 @@ function onOpenLightbox({ src, alt }) {
 <style scoped>
 .accordion {
   width: 100%;
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 0 3vw 5rem;
+  max-width: 100%;
+  margin: 0;
+  padding: 0 5%;
 }
 
 .accordion__err {
   margin: 0;
+  padding: 2rem 0;
   font-size: 0.85rem;
   color: #cccccc;
 }

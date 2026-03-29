@@ -33,3 +33,31 @@ CREATE POLICY "Allow authenticated delete"
   ON bibliography
   FOR DELETE
   USING (true);
+
+-- Create storage bucket for bibliography covers (if not exists)
+-- Note: The bucket must be created via Supabase UI and set to PUBLIC
+
+-- RLS policies for storage bucket
+-- These ensure public read access and authenticated write/delete access
+
+DROP POLICY IF EXISTS "Public Read Access" ON storage.objects;
+CREATE POLICY "Public Read Access"
+  ON storage.objects
+  FOR SELECT
+  USING (bucket_id = 'bibliography_covers');
+
+DROP POLICY IF EXISTS "Authenticated Upload" ON storage.objects;
+CREATE POLICY "Authenticated Upload"
+  ON storage.objects
+  FOR INSERT
+  WITH CHECK (
+    bucket_id = 'bibliography_covers' AND auth.role() = 'authenticated'
+  );
+
+DROP POLICY IF EXISTS "Authenticated Delete" ON storage.objects;
+CREATE POLICY "Authenticated Delete"
+  ON storage.objects
+  FOR DELETE
+  USING (
+    bucket_id = 'bibliography_covers' AND auth.role() = 'authenticated'
+  );
