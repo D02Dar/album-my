@@ -9,7 +9,7 @@ function getCookieOptions() {
   return {
     httpOnly: true,
     secure: isProd,
-    sameSite: "lax",
+    sameSite: isProd ? "none" : "lax",
     maxAge: COOKIE_MAX_AGE_MS,
     path: "/",
   };
@@ -86,7 +86,7 @@ function logout(req, res, next) {
       path: "/",
       httpOnly: true,
       secure: isProd,
-      sameSite: "lax",
+      sameSite: isProd ? "none" : "lax",
     });
     return res.json({ ok: true });
   } catch (err) {

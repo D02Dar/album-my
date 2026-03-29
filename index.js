@@ -27,6 +27,7 @@ const corsOptions = {
       : defaultOrigins,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  maxAge: 86400,
 };
 
 app.use(cors(corsOptions));
