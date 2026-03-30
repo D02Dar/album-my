@@ -31,17 +31,13 @@ async function logout() {
       
       <nav class="menu-content">
         <button @click="navigateTo('/')" class="menu-link">
-          HOME / GALLERY
+          HOME
+        </button>
+        <button @click="navigateTo('/gallery')" class="menu-link">
+          GALLERY
         </button>
         <button @click="navigateTo('/bibliography')" class="menu-link">
           BIBLIOGRAPHY
-        </button>
-        <button
-          v-if="isAuthenticated"
-          @click="navigateTo('/upload')"
-          class="menu-link"
-        >
-          ADMIN / UPLOAD
         </button>
         <button
           v-if="!isAuthenticated"

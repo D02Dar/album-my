@@ -1,6 +1,6 @@
 const express = require("express");
 const multer = require("multer");
-const { list, add, remove } = require("../controllers/bibliographyController");
+const { list, add, remove, updateOrder } = require("../controllers/bibliographyController");
 const { requireAuth } = require("../middleware/auth");
 
 const router = express.Router();
@@ -35,5 +35,6 @@ router.get("/", list);
 // Protected write access
 router.post("/", requireAuth, coverUpload.single("cover"), add);
 router.delete("/:id", requireAuth, remove);
+router.patch("/order", requireAuth, updateOrder);
 
 module.exports = router;

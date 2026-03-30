@@ -12,13 +12,33 @@ async function list(req, res, next) {
   try {
     const { data, error } = await supabaseAnon
       .from("bibliography")
-      .select("*")
-      .order("publish_year", { ascending: false });
+      .select(
+        `
+        id,
+        title,
+        publish_year,
+        publisher,
+        cover_url,
+        created_at,
+        display_order,
+        category_id,
+        biblio_categories(id, name)
+      `
+      )
+      .order("display_order", { ascending: false })
+      .order("created_at", { ascending: false });
 
     if (error) {
       return res.status(502).json({ error: error.message });
     }
-    return res.json({ bibliography: data || [] });
+
+    // Flatten the response for easier frontend consumption
+    const flatData = (data || []).map((item) => ({
+      ...item,
+      category: item.biblio_categories,
+    }));
+
+    return res.json({ bibliography: flatData });
   } catch (err) {
     next(err);
   }
@@ -26,7 +46,7 @@ async function list(req, res, next) {
 
 async function add(req, res, next) {
   try {
-    const { title, publish_year, publisher } = req.body;
+    const { title, publish_year, publisher, category_id } = req.body;
 
     // Validate required fields
     if (!title || !title.trim()) {
@@ -58,6 +78,16 @@ async function add(req, res, next) {
       console.log("Generated Cover URL:", cover_url); // Debug log
     }
 
+    // 获取现有书籍的最大 display_order，新书籍排在最前面
+    const { data: maxOrderData } = await admin
+      .from("bibliography")
+      .select("display_order")
+      .order("display_order", { ascending: false })
+      .limit(1);
+    
+    const maxDisplayOrder = maxOrderData && maxOrderData.length > 0 ? maxOrderData[0].display_order : 0;
+    const newDisplayOrder = maxDisplayOrder + 1;
+
     const { data, error } = await admin
       .from("bibliography")
       .insert([
@@ -66,6 +96,8 @@ async function add(req, res, next) {
           publish_year: publish_year?.trim() || null,
           publisher: publisher?.trim() || null,
           cover_url: cover_url,
+          category_id: category_id || null,
+          display_order: newDisplayOrder,
         },
       ])
       .select();
@@ -74,7 +106,21 @@ async function add(req, res, next) {
       return res.status(502).json({ error: error.message });
     }
 
-    return res.status(201).json({ bibliography: data[0] });
+    // Fetch with category info
+    const itemWithCategory = data[0];
+    if (category_id) {
+      const { data: catData } = await supabaseAnon
+        .from("biblio_categories")
+        .select("id, name")
+        .eq("id", category_id)
+        .single();
+
+      if (catData) {
+        itemWithCategory.category = catData;
+      }
+    }
+
+    return res.status(201).json({ bibliography: itemWithCategory });
   } catch (err) {
     next(err);
   }
@@ -132,4 +178,32 @@ async function remove(req, res, next) {
   }
 }
 
-module.exports = { list, add, remove };
+async function updateOrder(req, res, next) {
+  try {
+    const { orders } = req.body; // Array of { id, display_order }
+    
+    if (!Array.isArray(orders) || orders.length === 0) {
+      return res.status(400).json({ error: "Invalid orders array" });
+    }
+
+    const admin = getSupabaseAdmin();
+    
+    // 批量更新 display_order
+    for (const { id, display_order } of orders) {
+      const { error } = await admin
+        .from("bibliography")
+        .update({ display_order })
+        .eq("id", id);
+      
+      if (error) {
+        return res.status(502).json({ error: error.message });
+      }
+    }
+
+    return res.json({ success: true, message: "Bibliography order updated successfully" });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { list, add, remove, updateOrder };

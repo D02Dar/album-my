@@ -10,16 +10,15 @@ const router = createRouter({
       component: () => import("../views/HomeView.vue"),
     },
     {
+      path: "/gallery",
+      name: "gallery",
+      component: () => import("../views/GalleryView.vue"),
+    },
+    {
       path: "/login",
       name: "login",
       component: () => import("../views/LoginView.vue"),
       meta: { guestOnly: true },
-    },
-    {
-      path: "/upload",
-      name: "upload",
-      component: () => import("../views/UploadView.vue"),
-      meta: { requiresAuth: true },
     },
     {
       path: "/bibliography",

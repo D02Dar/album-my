@@ -1,6 +1,6 @@
 const express = require("express");
 const multer = require("multer");
-const { list, upload } = require("../controllers/photosController");
+const { list, upload, deletePhoto, updatePhotoOrder } = require("../controllers/photosController");
 const { requireAuth } = require("../middleware/auth");
 
 const router = express.Router();
@@ -21,5 +21,7 @@ const imageUpload = multer({
 
 router.get("/", list);
 router.post("/upload", requireAuth, imageUpload.single("image"), upload);
+router.delete("/:id", requireAuth, deletePhoto);
+router.patch("/order", requireAuth, updatePhotoOrder);
 
 module.exports = router;
