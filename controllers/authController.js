@@ -42,9 +42,22 @@ async function signup(req, res, next) {
       return res.status(400).json({ error: "Sign up did not return a user id" });
     }
 
-    issueTokenCookie(res, user.id);
+    // 生成 JWT token
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      const e = new Error("JWT_SECRET not configured");
+      e.status = 500;
+      throw e;
+    }
+    const token = jwt.sign({ sub: user.id }, secret, { expiresIn: "7d" });
+    
+    // 设置 httpOnly cookie
+    res.cookie(COOKIE_NAME, token, getCookieOptions());
+    
+    // 同时返回 token 给前端
     return res.status(201).json({
       user: { id: user.id, email: user.email },
+      token: token,
     });
   } catch (err) {
     next(err);
@@ -70,9 +83,22 @@ async function login(req, res, next) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    issueTokenCookie(res, user.id);
+    // 生成并设置 JWT token
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      const e = new Error("JWT_SECRET not configured");
+      e.status = 500;
+      throw e;
+    }
+    const token = jwt.sign({ sub: user.id }, secret, { expiresIn: "7d" });
+    
+    // 设置 httpOnly cookie（用于某些请求）
+    res.cookie(COOKIE_NAME, token, getCookieOptions());
+    
+    // 同时返回 token 给前端（前端保存到 localStorage）
     return res.json({
       user: { id: user.id, email: user.email },
+      token: token,
     });
   } catch (err) {
     next(err);

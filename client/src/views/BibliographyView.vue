@@ -54,7 +54,7 @@
             @drop="onDrop($event, book.id)"
           >
             <div class="drag-handle">≡</div>
-            <img v-if="book.cover_url" :src="book.cover_url" :alt="book.title" class="book-thumb" />
+            <img v-if="book.cover_url" :src="getProxyImageUrl(book.cover_url)" :alt="book.title" class="book-thumb" />
             <div v-else class="book-thumb book-placeholder">No Image</div>
             <div class="book-info">
               <div class="book-title">{{ book.title }}</div>
