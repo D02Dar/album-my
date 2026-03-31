@@ -25,6 +25,9 @@ const creatingAdminCategory = ref(false);
 const draggedPhotoId = ref(null);
 const draggedOverPhotoId = ref(null);
 
+// 快速排序相关
+const sortingPhotoId = ref(null);
+
 onMounted(() => {
   gallery.fetchPhotos();
   gallery.fetchCategories();
@@ -143,6 +146,63 @@ async function onDrop(e, targetPhotoId) {
   draggedPhotoId.value = null;
 }
 
+// 快速排序功能（移到顶部/底部）
+async function movePhotoToTop(photoId) {
+  try {
+    sortingPhotoId.value = photoId;
+    const allPhotos = [...gallery.photos];
+    const currentIndex = allPhotos.findIndex(p => p.id === photoId);
+    
+    if (currentIndex <= 0) return; // 已在顶部
+    
+    // 将照片移到顶部
+    const [photo] = allPhotos.splice(currentIndex, 1);
+    allPhotos.unshift(photo);
+    
+    // 生成新的 display_order
+    const orders = allPhotos.map((p, index) => ({
+      id: p.id,
+      display_order: allPhotos.length - index
+    }));
+    
+    await gallery.updatePhotoOrder(orders);
+    await gallery.fetchPhotos();
+  } catch (e) {
+    console.error("Failed to move photo to top:", e);
+    alert("操作失败，请重试");
+  } finally {
+    sortingPhotoId.value = null;
+  }
+}
+
+async function movePhotoToBottom(photoId) {
+  try {
+    sortingPhotoId.value = photoId;
+    const allPhotos = [...gallery.photos];
+    const currentIndex = allPhotos.findIndex(p => p.id === photoId);
+    
+    if (currentIndex >= allPhotos.length - 1) return; // 已在底部
+    
+    // 将照片移到底部
+    const [photo] = allPhotos.splice(currentIndex, 1);
+    allPhotos.push(photo);
+    
+    // 生成新的 display_order
+    const orders = allPhotos.map((p, index) => ({
+      id: p.id,
+      display_order: allPhotos.length - index
+    }));
+    
+    await gallery.updatePhotoOrder(orders);
+    await gallery.fetchPhotos();
+  } catch (e) {
+    console.error("Failed to move photo to bottom:", e);
+    alert("操作失败，请重试");
+  } finally {
+    sortingPhotoId.value = null;
+  }
+}
+
 function onUploaded() {
   gallery.fetchPhotos();
   selectedCategory.value = "";
@@ -254,14 +314,35 @@ function onUploaded() {
                 {{ photo.gallery_categories?.name || "未分类" }}
               </div>
             </div>
-            <button
-              type="button"
-              class="btn-delete"
-              :disabled="deletingPhotoId === photo.id"
-              @click="deletePhoto(photo.id)"
-            >
-              {{ deletingPhotoId === photo.id ? "删除中..." : "删除" }}
-            </button>
+            <!-- 快速排序按钮 -->
+            <div class="photo-actions">
+              <button
+                type="button"
+                class="btn-sort"
+                title="移至顶部"
+                :disabled="sortingPhotoId === photo.id || gallery.photos[0]?.id === photo.id"
+                @click="movePhotoToTop(photo.id)"
+              >
+                ⬆️
+              </button>
+              <button
+                type="button"
+                class="btn-sort"
+                title="移至底部"
+                :disabled="sortingPhotoId === photo.id || gallery.photos[gallery.photos.length - 1]?.id === photo.id"
+                @click="movePhotoToBottom(photo.id)"
+              >
+                ⬇️
+              </button>
+              <button
+                type="button"
+                class="btn-delete"
+                :disabled="deletingPhotoId === photo.id"
+                @click="deletePhoto(photo.id)"
+              >
+                {{ deletingPhotoId === photo.id ? "删除中..." : "删除" }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -468,12 +549,11 @@ function onUploaded() {
 
 .photo-drag-item {
   display: grid;
-  grid-template-columns: 40px 80px 1fr auto;
+  grid-template-columns: 50px 80px 1fr auto;
   gap: 1rem;
   align-items: center;
   padding: 1rem;
   background: #222;
-  border-left: 3px solid #333;
   border: 1px solid #333;
   cursor: grab;
   transition: all 0.2s;
@@ -487,29 +567,37 @@ function onUploaded() {
 .photo-drag-item.dragging {
   opacity: 0.5;
   background: #1a1a1a;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 .photo-drag-item.dragover {
   background: #2a2a2a;
   border: 2px solid #666;
   padding: 0.95rem;
+  box-shadow: inset 0 0 8px rgba(102, 179, 255, 0.2);
 }
 
 .drag-handle {
   text-align: center;
   color: #666;
-  font-size: 1rem;
+  font-size: 1.5rem;
   font-weight: bold;
   cursor: grab;
   user-select: none;
+  padding: 0.75rem;
+  border-radius: 0.25rem;
+  transition: all 0.2s;
+}
+
+.drag-handle:hover {
+  color: #999;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .drag-handle:active {
   cursor: grabbing;
-}
-
-.photo-drag-item:hover .drag-handle {
-  color: #999;
+  color: #ddd;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .photo-thumb {
@@ -536,6 +624,36 @@ function onUploaded() {
   font-size: 0.7rem;
   color: #666;
   text-transform: uppercase;
+}
+
+/* 照片操作按钮组 */
+.photo-actions {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.btn-sort {
+  padding: 0.4rem 0.5rem;
+  background: transparent;
+  color: #666;
+  border: 1px solid #333;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  min-width: 2rem;
+}
+
+.btn-sort:hover:not(:disabled) {
+  color: #66b3ff;
+  border-color: #66b3ff;
+  background: rgba(102, 179, 255, 0.1);
+}
+
+.btn-sort:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
 .btn-delete {

@@ -34,11 +34,24 @@
 
       <!-- 拖动排序 -->
       <div class="admin-section">
-        <h3 class="admin-section__title">书籍排序（拖动更改顺序）</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h3 class="admin-section__title">书籍排序</h3>
+          <button
+            v-if="filteredBibliographies.length > 0"
+            type="button"
+            class="btn-toggle-order-mode"
+            @click="isMobileOrderMode = !isMobileOrderMode"
+          >
+            {{ isMobileOrderMode ? "拖拽排序" : "精确排序" }}
+          </button>
+        </div>
+
         <div v-if="filteredBibliographies.length === 0" class="admin-empty">
           {{ adminFilterCategory ? "该分类无书籍" : "暂无书籍" }}
         </div>
-        <div v-else class="books-drag-list">
+
+        <!-- 拖拽排序模式（桌面） -->
+        <div v-else-if="!isMobileOrderMode" class="books-drag-list">
           <div
             v-for="book in filteredBibliographies"
             :key="book.id"
@@ -65,15 +78,73 @@
                 {{ book.publish_year }}
               </div>
             </div>
-            <button
-              type="button"
-              class="btn-delete"
-              :disabled="isDeletingId === book.id"
-              @click="deleteBibliography(book.id)"
-            >
-              {{ isDeletingId === book.id ? "删除中..." : "删除" }}
-            </button>
+            <!-- 快速排序按钮 -->
+            <div class="book-actions">
+              <button
+                type="button"
+                class="btn-sort"
+                title="移至顶部"
+                :disabled="sortingBookId === book.id || bibliographies[0]?.id === book.id"
+                @click="moveBookToTop(book.id)"
+              >
+                ⬆️
+              </button>
+              <button
+                type="button"
+                class="btn-sort"
+                title="移至底部"
+                :disabled="sortingBookId === book.id || bibliographies[bibliographies.length - 1]?.id === book.id"
+                @click="moveBookToBottom(book.id)"
+              >
+                ⬇️
+              </button>
+              <button
+                type="button"
+                class="btn-delete"
+                :disabled="isDeletingId === book.id"
+                @click="deleteBibliography(book.id)"
+              >
+                {{ isDeletingId === book.id ? "删除中..." : "删除" }}
+              </button>
+            </div>
           </div>
+        </div>
+
+        <!-- 精确排序模式（移动端友好） -->
+        <div v-else class="mobile-order-section">
+          <div class="mobile-order-list">
+            <div
+              v-for="(book, index) in filteredBibliographies"
+              :key="book.id"
+              class="mobile-order-item"
+            >
+              <div class="order-position">
+                <span class="position-label">{{ index + 1 }}/{{ filteredBibliographies.length }}</span>
+              </div>
+              <div class="order-book-info">
+                <span class="order-title">{{ book.title }}</span>
+              </div>
+              <div class="order-buttons">
+                <button
+                  type="button"
+                  class="btn-order-arrow"
+                  :disabled="sortingBookId === book.id"
+                  @click="jumpToPosition(index)"
+                  title="跳转位置"
+                >
+                  ⇋ 跳转
+                </button>
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="btn-save-order"
+            @click="saveCustomOrder"
+            :disabled="sortingBookId !== null"
+          >
+            {{ sortingBookId ? "保存中..." : "保存排序" }}
+          </button>
         </div>
       </div>
     </div>
@@ -237,8 +308,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, nextTick } from "vue";
+import { ref, onMounted, computed, nextTick, watch } from "vue";
 import { useAuthStore } from "../stores/auth";
+import { getProxyImageUrl } from "../utils/imageProxy";
 import BibliographyDetailModal from "../components/BibliographyDetailModal.vue";
 import api from "../api";
 
@@ -271,6 +343,12 @@ const showAdmin = ref(false);
 const adminFilterCategory = ref(null);
 const draggedBookId = ref(null);
 const draggedOverBookId = ref(null);
+
+// 快速排序相关
+const sortingBookId = ref(null);
+
+// 移动端排序模式
+const isMobileOrderMode = ref(false);
 
 // Animation
 const animationQueue = ref([]);
@@ -498,7 +576,121 @@ async function onDrop(e, targetBookId) {
   draggedBookId.value = null;
 }
 
-// Process animation queue sequentially
+// 快速排序功能（移到顶部/底部）
+async function moveBookToTop(bookId) {
+  try {
+    sortingBookId.value = bookId;
+    const allBooks = [...bibliographies.value];
+    const currentIndex = allBooks.findIndex(b => b.id === bookId);
+    
+    if (currentIndex <= 0) return; // 已在顶部
+    
+    // 将书籍移到顶部
+    const [book] = allBooks.splice(currentIndex, 1);
+    allBooks.unshift(book);
+    
+    // 生成新的 display_order
+    const orders = allBooks.map((b, index) => ({
+      id: b.id,
+      display_order: allBooks.length - index
+    }));
+    
+    await api.patch("/api/bibliography/order", { orders });
+    await fetchBibliography();
+  } catch (e) {
+    console.error("Failed to move book to top:", e);
+    alert("操作失败，请重试");
+  } finally {
+    sortingBookId.value = null;
+  }
+}
+
+async function moveBookToBottom(bookId) {
+  try {
+    sortingBookId.value = bookId;
+    const allBooks = [...bibliographies.value];
+    const currentIndex = allBooks.findIndex(b => b.id === bookId);
+    
+    if (currentIndex >= allBooks.length - 1) return; // 已在底部
+    
+    // 将书籍移到底部
+    const [book] = allBooks.splice(currentIndex, 1);
+    allBooks.push(book);
+    
+    // 生成新的 display_order
+    const orders = allBooks.map((b, index) => ({
+      id: b.id,
+      display_order: allBooks.length - index
+    }));
+    
+    await api.patch("/api/bibliography/order", { orders });
+    await fetchBibliography();
+  } catch (e) {
+    console.error("Failed to move book to bottom:", e);
+    alert("操作失败，请重试");
+  } finally {
+    sortingBookId.value = null;
+  }
+}
+
+// 移动端排序：在列表中上移
+// 跳到指定位置（使用Array.splice实现）
+function jumpToPosition(currentIndex) {
+  const total = bibliographies.value.length;
+  const targetInput = prompt(
+    `移至位置 (1-${total}):`,
+    currentIndex + 1
+  );
+  
+  if (!targetInput) return; // 用户取消
+  
+  const newIndex = parseInt(targetInput) - 1;
+  
+  // 验证输入
+  if (isNaN(newIndex) || newIndex < 0 || newIndex >= total || newIndex === currentIndex) {
+    alert("位置无效");
+    return;
+  }
+  
+  // 必须直接修改源数组 bibliographies.value，而不是修改 computed 属性
+  const bookId = filteredBibliographies.value[currentIndex].id;
+  const realCurrentIndex = bibliographies.value.findIndex(b => b.id === bookId);
+  
+  const [movedItem] = bibliographies.value.splice(realCurrentIndex, 1);
+  bibliographies.value.splice(newIndex, 0, movedItem);
+}
+
+// 保存自定义排序
+async function saveCustomOrder() {
+  try {
+    sortingBookId.value = "saving";
+    
+    // 关键修复：必须和后端的排序逻辑保持一致（降序：总长度 - 索引）
+    // 并且遍历完整的 bibliographies 数组
+    const total = bibliographies.value.length;
+    const orders = bibliographies.value.map((book, index) => ({
+      id: book.id,
+      display_order: total - index
+    }));
+
+    if (orders.length === 0) {
+      alert("请设置书籍位置");
+      return;
+    }
+
+    await api.patch("/api/bibliography/order", { orders });
+    await fetchBibliography();
+    
+    // 重置状态
+    isMobileOrderMode.value = false;
+    alert("排序已保存");
+  } catch (e) {
+    console.error("Failed to save custom order:", e);
+    alert("保存失败，请重试");
+  } finally {
+    sortingBookId.value = null;
+  }
+}
 const processQueue = async () => {
   if (queueProcessing) return;
   queueProcessing = true;
@@ -670,7 +862,7 @@ onMounted(() => {
 
 .book-drag-item {
   display: grid;
-  grid-template-columns: 40px 100px 1fr auto;
+  grid-template-columns: 50px 100px 1fr auto;
   gap: 1rem;
   align-items: center;
   padding: 1rem;
@@ -688,29 +880,37 @@ onMounted(() => {
 .book-drag-item.dragging {
   opacity: 0.5;
   background: #1a1a1a;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 .book-drag-item.dragover {
   background: #2a2a2a;
   border: 2px solid #666;
   padding: 0.95rem;
+  box-shadow: inset 0 0 8px rgba(102, 179, 255, 0.2);
 }
 
 .drag-handle {
   text-align: center;
   color: #666;
-  font-size: 1rem;
+  font-size: 1.5rem;
   font-weight: bold;
   cursor: grab;
   user-select: none;
+  padding: 0.75rem;
+  border-radius: 0.25rem;
+  transition: all 0.2s;
+}
+
+.drag-handle:hover {
+  color: #999;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .drag-handle:active {
   cursor: grabbing;
-}
-
-.book-drag-item:hover .drag-handle {
-  color: #999;
+  color: #ddd;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .book-thumb {
@@ -949,7 +1149,61 @@ onMounted(() => {
 
 @media (max-width: 600px) {
   .biblio-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .biblio-cell {
+    padding: 1rem 0.75rem;
+  }
+
+  .cover-container {
+    height: 160px;
+    margin-bottom: 1rem;
+  }
+
+  .biblio-meta {
+    gap: 0.5rem;
+  }
+
+  .biblio-title {
+    font-size: 0.9rem;
+  }
+
+  .biblio-author,
+  .biblio-year,
+  .biblio-category {
+    font-size: 0.75rem;
+  }
+
+  .btn-detail {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.65rem;
+  }
+
+  /* 移动端排序优化 */
+  .mobile-order-item {
+    grid-template-columns: 70px 1fr 50px;
+    gap: 0.75rem;
+    padding: 0.6rem;
+  }
+
+  .order-input {
+    width: 45px;
+  }
+
+  .mobile-order-list {
+    max-height: 400px;
+  }
+
+  .btn-save-order {
+    padding: 0.6rem 1rem;
+    font-size: 0.8rem;
+  }
+
+  /* 避免拖拽排序在小屏幕上显示 */
+  .btn-toggle-order-mode {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.7rem;
   }
 }
 
@@ -1123,6 +1377,205 @@ onMounted(() => {
 
 .btn-delete:disabled {
   opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 书籍操作按钮组 */
+.book-actions {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.btn-sort {
+  padding: 0.4rem 0.5rem;
+  background: transparent;
+  color: #666;
+  border: 1px solid #333;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  min-width: 2rem;
+}
+
+.btn-sort:hover:not(:disabled) {
+  color: #66b3ff;
+  border-color: #66b3ff;
+  background: rgba(102, 179, 255, 0.1);
+}
+
+.btn-sort:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Book Drag Item Delete Button */
+.book-actions .btn-delete {
+  padding: 0.5rem 0.8rem;
+  background: transparent;
+  color: #666;
+  border: 1px solid #333;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  font-weight: 400;
+  white-space: nowrap;
+  margin-top: 0;
+}
+
+.book-actions .btn-delete:hover:not(:disabled) {
+  color: #ff6b6b;
+  border-color: #ff6b6b;
+}
+
+.book-actions .btn-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 排序模式切换按钮 */
+.btn-toggle-order-mode {
+  padding: 0.5rem 1rem;
+  background: transparent;
+  color: #666;
+  border: 1px solid #333;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+}
+
+.btn-toggle-order-mode:hover {
+  color: #999;
+  border-color: #666;
+}
+
+/* 移动端排序列表 */
+.mobile-order-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.mobile-order-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 500px;
+  overflow-y: auto;
+  padding: 0.5rem;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 0.25rem;
+}
+
+.mobile-order-item {
+  display: grid;
+  grid-template-columns: 80px 1fr 60px;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.75rem;
+  background: #222;
+  border: 1px solid #333;
+  border-radius: 0.25rem;
+}
+
+.order-position {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.position-label {
+  font-size: 0.75rem;
+  color: #666;
+  white-space: nowrap;
+}
+
+.order-input {
+  width: 50px;
+  padding: 0.4rem;
+  background: #1a1a1a;
+  border: 1px solid #444;
+  color: #ddd;
+  text-align: center;
+  font-size: 0.9rem;
+  border-radius: 0.2rem;
+}
+
+.order-input:focus {
+  outline: none;
+  border-color: #666;
+  background: #222;
+}
+
+.order-book-info {
+  min-width: 0;
+}
+
+.order-title {
+  display: block;
+  font-size: 0.85rem;
+  color: #ddd;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.order-buttons {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.btn-order-arrow {
+  flex: 1;
+  padding: 0.4rem;
+  background: transparent;
+  color: #666;
+  border: 1px solid #333;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: 0.2rem;
+}
+
+.btn-order-arrow:hover:not(:disabled) {
+  color: #66b3ff;
+  border-color: #66b3ff;
+  background: rgba(102, 179, 255, 0.1);
+}
+
+.btn-order-arrow:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.btn-save-order {
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  color: #999;
+  border: 1px solid #444;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  border-radius: 0.25rem;
+}
+
+.btn-save-order:hover:not(:disabled) {
+  color: #66b3ff;
+  border-color: #66b3ff;
+  background: rgba(102, 179, 255, 0.05);
+}
+
+.btn-save-order:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
 }
 

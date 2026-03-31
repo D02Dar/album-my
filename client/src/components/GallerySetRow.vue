@@ -9,6 +9,7 @@ defineProps({
 const emit = defineEmits(["open-lightbox"]);
 
 const expanded = ref(false);
+const isHovering = ref(false);
 
 function onThumbClick(photo, e) {
   e.preventDefault();
@@ -18,15 +19,20 @@ function onThumbClick(photo, e) {
     alt: photo.alt || "",
   });
 }
+
+// 处理展开/折叠（支持移动端点击和桌面端悬停）
+function toggleExpanded() {
+  expanded.value = !expanded.value;
+}
 </script>
 
 <template>
   <article
     class="set-row"
-    @mouseenter="expanded = true"
-    @mouseleave="expanded = false"
+    @mouseenter="isHovering = true; expanded = true"
+    @mouseleave="isHovering = false; expanded = false"
   >
-    <div class="set-row__head">
+    <div class="set-row__head" @click="toggleExpanded" role="button" tabindex="0">
       <h3 class="set-row__title" :class="{ 'set-row__title--on': expanded }">
         {{ setItem.name }}
       </h3>
@@ -61,6 +67,13 @@ function onThumbClick(photo, e) {
 
 .set-row__head {
   padding: 2rem 0 1.5rem;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.set-row__head:active {
+  opacity: 0.8;
 }
 
 .set-row__title {

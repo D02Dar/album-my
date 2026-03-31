@@ -1,4 +1,4 @@
-const { supabaseAnon } = require("../config/supabase");
+const { supabaseAnon, getSupabaseAdmin } = require("../config/supabase");
 
 // List all gallery categories
 async function listCategories() {
@@ -11,13 +11,15 @@ async function listCategories() {
   return data || [];
 }
 
-// Create a new gallery category
+// Create a new gallery category (requires auth)
 async function createCategory(name) {
   if (!name || !name.trim()) {
     throw new Error("分类名称不能为空");
   }
 
-  const { data, error } = await supabaseAnon
+  // Use admin client to bypass RLS
+  const admin = getSupabaseAdmin();
+  const { data, error } = await admin
     .from("gallery_categories")
     .insert([{ name: name.trim() }])
     .select()
