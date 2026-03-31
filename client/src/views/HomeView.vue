@@ -1,229 +1,222 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, onMounted, computed } from "vue";
+import api from "../api"; // 确保你的项目里有配置好的 api 实例
 
-// Generate grid items for the grain portal
-const gridSize = 20;
-const gridItems = computed(() => {
-  return Array.from({ length: gridSize * 12 }, (_, i) => ({
-    id: i,
-    opacity: Math.random() * 0.3 + 0.1,
-  }));
+// 存储从后端获取的主页推荐图片
+const featuredPhotos = ref([]);
+
+// 默认兜底的高级占位图（完美适配这个 7 格排版）
+const defaultPhotos = [
+  { id: '1', url: 'https://images.unsplash.com/photo-1549488331-48350163359d?w=800&fit=crop' },
+  { id: '2', url: 'https://images.unsplash.com/photo-1563220473-b265691d1e4e?w=800&fit=crop' },
+  { id: '3', url: 'https://images.unsplash.com/photo-1533105079780-92b9be482077?w=800&fit=crop' },
+  { id: '4', url: 'https://images.unsplash.com/photo-1549887552-cb1071d3e5ca?w=1000&fit=crop' },
+  { id: '5', url: 'https://images.unsplash.com/photo-1628189689408-592a3b022143?w=800&fit=crop' },
+  { id: '6', url: 'https://images.unsplash.com/photo-1551334787-21e6bd3ab135?w=800&fit=crop' },
+  { id: '7', url: 'https://images.unsplash.com/photo-1511407397940-d57f68e81203?w=800&fit=crop' }
+];
+
+// 获取主页推荐图片
+const fetchFeaturedPhotos = async () => {
+  try {
+    // 假设你之后会在后端实现这个接口：只拉取 is_home_featured = true 的图片
+    const response = await api.get('/api/photos/featured');
+    if (response.data && response.data.length > 0) {
+      featuredPhotos.value = response.data;
+    }
+  } catch (error) {
+    console.log("Using default editorial images (API not ready or empty)");
+  }
+};
+
+// 计算属性：如果有真实数据就用前 7 张，否则用兜底图。保证排版不崩。
+const displayPhotos = computed(() => {
+  const photosToUse = featuredPhotos.value.length > 0 ? featuredPhotos.value : defaultPhotos;
+  return photosToUse.slice(0, 7); // 严格截取 7 张以适配 CSS Grid 的 nth-child
+});
+
+onMounted(() => {
+  fetchFeaturedPhotos();
 });
 </script>
 
 <template>
-  <div class="grain-portal">
-    <!-- Falling grain background grid -->
-    <div class="grid-container">
-      <div
-        v-for="item in gridItems"
-        :key="item.id"
+  <div class="editorial-home">
+    <div class="corner-text top-left">MORIYAMA / EDITORIAL</div>
+    
+    <div class="corner-text top-right">MENU</div>
+    
+    <div class="corner-text bottom-left">LTD. EDITION VOL 01</div>
+
+    <main class="editorial-grid">
+      <div 
+        v-for="photo in displayPhotos" 
+        :key="photo.id" 
         class="grid-item"
-        :style="{ '--item-opacity': item.opacity }"
-      />
-    </div>
+      >
+        <img :src="photo.url || photo.image_url" :alt="photo.title || 'Editorial Photography'">
+      </div>
+    </main>
 
-    <!-- Grain texture overlay -->
-    <div class="grain-overlay" />
-
-    <!-- Bottom Left Metadata -->
-    <div class="metadata metadata--bottom-left">
-      <p class="metadata__text">SHINJUKU, TOKYO</p>
-      <p class="metadata__text metadata__text--small">35.6895° N, 139.6917° E</p>
-    </div>
-
-    <!-- Bottom Right Copyright -->
-    <div class="metadata metadata--bottom-right">
-      <p class="metadata__text metadata__text--copyright">©2024</p>
+    <div class="hero-overlay">
+      <h1 class="hero-title">愛 密 集</h1>
+      <div class="hero-subtitle">FRAGMENTS OF TIME & SPACE</div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.grain-portal {
+.editorial-home {
   position: relative;
   width: 100vw;
   height: 100vh;
-  background: #0d0d0d;
+  background-color: #050505;
+  color: #fff;
   overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  /* 抵消如果 App.vue 有全局 padding 的影响 */
   margin-left: calc(-50vw + 50%);
 }
 
-/* CSS Grid animation container */
-.grid-container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
+/* 极简编辑排版：边角小字 */
+.corner-text { 
+  position: absolute; /* 这里用 absolute 限制在组件内 */
+  font-size: 0.6rem; 
+  letter-spacing: 4px; 
+  color: #555; 
+  text-transform: uppercase; 
+  z-index: 100; 
+}
+
+.top-left { 
+  top: 2rem; 
+  left: 2rem; 
+}
+
+.top-right { 
+  top: 2rem; 
+  right: 2rem; 
+  display: flex; 
+  align-items: center; 
+  gap: 10px; 
+  cursor: pointer; 
+  color: #888; 
+  transition: color 0.3s;
+}
+
+.top-right:hover { 
+  color: #fff; 
+}
+
+.top-right::after { 
+  content: ''; 
+  width: 20px; 
+  height: 1px; 
+  background: currentColor; 
+}
+
+.bottom-left { 
+  bottom: 2rem; 
+  left: 2rem; 
+  writing-mode: vertical-rl; 
+  transform: rotate(180deg); 
+}
+
+/* 错落有致的背景图片网格 */
+.editorial-grid {
+  position: absolute; 
+  top: 0; 
+  left: 0; 
+  width: 100%; 
   height: 100%;
   display: grid;
-  grid-template-columns: repeat(20, 1fr);
-  grid-template-rows: repeat(12, 1fr);
-  gap: 0;
-  overflow: hidden;
-  animation: grain-fall 20s linear infinite;
+  grid-template-columns: repeat(4, 1fr); /* 4列基础网格 */
+  grid-template-rows: repeat(3, 1fr);    /* 3行基础网格 */
+  gap: 2px; /* 图片之间的极细缝隙 */
+  background-color: #111;
   z-index: 1;
 }
 
-@keyframes grain-fall {
-  0% {
-    transform: translateY(0);
-  }
-  100% {
-    transform: translateY(100%);
-  }
+/* 单个图片容器 */
+.grid-item { 
+  position: relative; 
+  overflow: hidden; 
+  background: #1a1a1a; 
 }
 
-/* Individual grid items */
-.grid-item {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, var(--item-opacity)),
-    rgba(255, 255, 255, calc(var(--item-opacity) * 0.5))
-  );
-  border: 0.5px solid #474747;
-  transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: pointer;
+.grid-item img { 
+  width: 100%; 
+  height: 100%; 
+  object-fit: cover; 
+  filter: grayscale(100%) brightness(0.4) contrast(1.2); /* 压暗，确保文字清晰 */
+  transition: filter 0.8s ease, transform 0.8s ease; 
 }
 
-.grid-item:hover {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, min(0.4, calc(var(--item-opacity) + 0.25))),
-    rgba(255, 255, 255, calc(min(0.4, var(--item-opacity) + 0.25) * 0.5))
-  );
+/* 悬停时微微亮起并放大，暗示图片质感 */
+.grid-item:hover img { 
+  filter: grayscale(100%) brightness(0.7) contrast(1.2); 
+  transform: scale(1.03); 
 }
 
-/* Grain texture overlay */
-.grain-overlay {
-  position: absolute;
-  width: 100%;
+/* === 核心：打破死板，让特定的图片跨行跨列 === */
+/* 第1张图，纵向跨2行 */
+.grid-item:nth-child(1) { grid-row: span 2; }
+/* 第4张图，横向跨2列 */
+.grid-item:nth-child(4) { grid-column: span 2; }
+/* 第6张图，更大的一块 */
+.grid-item:nth-child(6) { grid-row: span 2; }
+
+/* 中央巨大悬浮文字 */
+.hero-overlay {
+  position: absolute; 
+  top: 0; 
+  left: 0; 
+  width: 100%; 
   height: 100%;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' /%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
-  background-size: 400px 400px;
-  mix-blend-mode: overlay;
-  pointer-events: none;
-  z-index: 2;
-  opacity: 0.3;
-  animation: grain-texture-shimmer 4s ease-in-out infinite;
+  display: flex; 
+  flex-direction: column; 
+  justify-content: center; 
+  align-items: center;
+  z-index: 10; 
+  pointer-events: none; /* 防止挡住图片的 Hover 效果 */
 }
 
-@keyframes grain-texture-shimmer {
-  0%, 100% {
-    opacity: 0.3;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-/* Metadata styling */
-.metadata {
-  position: fixed;
-  z-index: 10;
-  font-size: 0.7rem;
-  letter-spacing: 0.12em;
+.hero-title {
+  font-size: 8rem; /* 巨大字号 */
+  font-weight: 200;
+  letter-spacing: 4vw; /* 极宽的字母间距，中文排版适当减小以防断裂 */
+  color: rgba(255, 255, 255, 0.9);
   text-transform: uppercase;
-  color: #ffffff;
-  font-weight: 300;
-  line-height: 1.4;
+  margin-right: -4vw; /* 修正因为 letter-spacing 导致的整体偏移 */
+  display: flex;
+  align-items: center;
+  text-shadow: 0 10px 30px rgba(0,0,0,0.5); /* 稍微加点阴影增强层次 */
 }
 
-.metadata--bottom-left {
-  bottom: 2.5rem;
-  left: 2.5rem;
+.hero-subtitle {
+  font-size: 0.6rem; 
+  letter-spacing: 8px; 
+  color: #999; 
+  margin-top: 1.5rem; 
+  text-transform: uppercase;
 }
 
-.metadata--bottom-right {
-  bottom: 2.5rem;
-  right: 2.5rem;
-}
-
-.metadata__text {
-  margin: 0;
-  padding: 0;
-}
-
-.metadata__text--small {
-  font-size: 0.65rem;
-  color: #999999;
-  margin-top: 0.3rem;
-}
-
-.metadata__text--copyright {
-  font-size: 0.65rem;
-  color: #666666;
-}
-
-/* Responsive design */
+/* 移动端适配 */
 @media (max-width: 768px) {
-  .grid-container {
-    grid-template-columns: repeat(12, 1fr);
-    grid-template-rows: repeat(10, 1fr);
+  .editorial-grid { 
+    grid-template-columns: repeat(2, 1fr); 
+    grid-template-rows: repeat(4, 1fr); 
   }
-
-  .metadata {
-    font-size: 0.6rem;
+  .grid-item:nth-child(1) { grid-row: span 1; }
+  .grid-item:nth-child(4) { grid-column: span 1; grid-row: span 2; }
+  
+  .hero-title { 
+    font-size: 4rem; 
+    letter-spacing: 4vw; 
+    margin-right: -4vw; 
   }
-
-  .metadata--bottom-left,
-  .metadata--bottom-right {
-    bottom: 1.5rem;
-  }
-
-  .metadata--bottom-left {
-    left: 1.5rem;
-  }
-
-  .metadata--bottom-right {
-    right: 1.5rem;
-  }
-
-  .metadata__text--small {
-    font-size: 0.55rem;
-  }
-
-  .metadata__text--copyright {
-    font-size: 0.55rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .grid-container {
-    grid-template-columns: repeat(8, 1fr);
-    grid-template-rows: repeat(8, 1fr);
-  }
-
-  .grid-item {
-    border: 0.5px solid #474747;
-  }
-
-  .metadata {
-    font-size: 0.55rem;
-  }
-
-  .metadata--bottom-left,
-  .metadata--bottom-right {
-    bottom: 1rem;
-  }
-
-  .metadata--bottom-left {
-    left: 1rem;
-  }
-
-  .metadata--bottom-right {
-    right: 1rem;
-  }
-
-  .metadata__text--small {
+  .hero-subtitle {
     font-size: 0.5rem;
-  }
-
-  .metadata__text--copyright {
-    font-size: 0.5rem;
+    letter-spacing: 4px;
   }
 }
 </style>
