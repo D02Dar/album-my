@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editorial Home</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body, html { height: 100%; font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #050505; color: #fff; overflow: hidden; }
+
+        /* 极简编辑排版：边角小字 */
+        .corner-text { position: fixed; font-size: 0.6rem; letter-spacing: 4px; color: #555; text-transform: uppercase; z-index: 100; }
+        .top-left { top: 2rem; left: 2rem; }
+        .top-right { top: 2rem; right: 2rem; display: flex; align-items: center; gap: 10px; cursor: pointer; color: #888; }
+        .top-right:hover { color: #fff; }
+        .top-right::after { content: ''; width: 20px; height: 1px; background: currentColor; }
+        .bottom-left { bottom: 2rem; left: 2rem; writing-mode: vertical-rl; transform: rotate(180deg); }
+
+        /* 错落有致的背景图片网格 */
+        .editorial-grid {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr); /* 4列基础网格 */
+            grid-template-rows: repeat(3, 1fr);    /* 3行基础网格 */
+            gap: 2px; /* 图片之间的极细缝隙 */
+            background-color: #111;
+            z-index: 1;
+        }
+
+        /* 单个图片容器 */
+        .grid-item { position: relative; overflow: hidden; background: #1a1a1a; }
+        .grid-item img { 
+            width: 100%; height: 100%; object-fit: cover; 
+            filter: grayscale(100%) brightness(0.4) contrast(1.2); /* 压暗，确保文字清晰 */
+            transition: filter 0.8s ease, transform 0.8s ease; 
+        }
+        
+        /* 悬停时微微亮起并放大，暗示图片质感 */
+        .grid-item:hover img { filter: grayscale(100%) brightness(0.7) contrast(1.2); transform: scale(1.03); }
+
+        /* === 核心：打破死板，让特定的图片跨行跨列 === */
+        /* 第1张图，纵向跨2行 */
+        .grid-item:nth-child(1) { grid-row: span 2; }
+        /* 第4张图，横向跨2列 */
+        .grid-item:nth-child(4) { grid-column: span 2; }
+        /* 第6张图，更大的一块 */
+        .grid-item:nth-child(6) { grid-row: span 2; }
+
+        /* 中央巨大悬浮文字 */
+        .hero-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 10; pointer-events: none; /* 防止挡住图片的 Hover 效果 */
+        }
+
+        .hero-title {
+            font-size: 8rem; /* 巨大字号 */
+            font-weight: 200;
+            letter-spacing: 5vw; /* 极宽的字母间距 */
+            color: rgba(255, 255, 255, 0.9);
+            text-transform: uppercase;
+            margin-right: -5vw; /* 修正因为 letter-spacing 导致的整体偏移 */
+            display: flex;
+            align-items: center;
+        }
+
+        .hero-subtitle {
+            font-size: 0.6rem; letter-spacing: 8px; color: #555; margin-top: 1rem; text-transform: uppercase;
+        }
+
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            .editorial-grid { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(4, 1fr); }
+            .grid-item:nth-child(1) { grid-row: span 1; }
+            .grid-item:nth-child(4) { grid-column: span 1; grid-row: span 2; }
+            .hero-title { font-size: 4rem; letter-spacing: 4vw; margin-right: -4vw; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="corner-text top-left">MORIYAMA / EDITORIAL</div>
+    <div class="corner-text top-right">MENU</div>
+    <div class="corner-text bottom-left">LTD. EDITION VOL 01</div>
+
+    <main class="editorial-grid">
+        <div class="grid-item"><img src="https://images.unsplash.com/photo-1549488331-48350163359d?w=800&fit=crop" alt="P1"></div>
+        <div class="grid-item"><img src="https://images.unsplash.com/photo-1563220473-b265691d1e4e?w=800&fit=crop" alt="P2"></div>
+        <div class="grid-item"><img src="https://images.unsplash.com/photo-1533105079780-92b9be482077?w=800&fit=crop" alt="P3"></div>
+        <div class="grid-item"><img src="https://images.unsplash.com/photo-1549887552-cb1071d3e5ca?w=1000&fit=crop" alt="P4"></div>
+        <div class="grid-item"><img src="https://images.unsplash.com/photo-1628189689408-592a3b022143?w=800&fit=crop" alt="P5"></div>
+        <div class="grid-item"><img src="https://images.unsplash.com/photo-1551334787-21e6bd3ab135?w=800&fit=crop" alt="P6"></div>
+        <div class="grid-item"><img src="https://images.unsplash.com/photo-1511407397940-d57f68e81203?w=800&fit=crop" alt="P7"></div>
+    </main>
+
+    <div class="hero-overlay">
+        <h1 class="hero-title">愛 密 集</h1>
+        <div class="hero-subtitle">FRAGMENTS OF TIME & SPACE</div>
+    </div>
+
+</body>
+</html>
