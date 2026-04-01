@@ -1,4 +1,5 @@
 const path = require("path");
+const sharp = require("sharp");
 const { supabaseAnon, getSupabaseAdmin } = require("../config/supabase");
 
 const BUCKET = "gallery_images";
@@ -6,6 +7,28 @@ const BUCKET = "gallery_images";
 function safeBasename(originalname) {
   const base = path.basename(originalname || "image").replace(/[^\w.\-]+/g, "_");
   return base.slice(0, 180) || "image";
+}
+
+/**
+ * Compress and convert an image buffer to WebP using sharp.
+ *
+ * Settings chosen for a film-grain photography portfolio:
+ *  - Resize: cap at 2000px wide, keep aspect ratio, never upscale
+ *  - WebP quality 85: high enough to preserve high-frequency noise (grain/texture)
+ *    without the artefacts introduced by lower quality settings
+ *  - effort 6: slower encoder pass that squeezes more bytes out without
+ *    touching quality; safe to run server-side where latency matters less
+ *    than file size
+ */
+async function compressImage(inputBuffer) {
+  return sharp(inputBuffer)
+    .resize({
+      width: 2000,
+      withoutEnlargement: true, // never blow up smaller images
+      fit: "inside",            // preserve aspect ratio within the width cap
+    })
+    .webp({ quality: 85, effort: 6 })
+    .toBuffer();
 }
 
 async function list(req, res, next) {
@@ -49,12 +72,28 @@ async function upload(req, res, next) {
     const userId = req.user.id;
     const admin = getSupabaseAdmin();
 
-    const objectPath = `${userId}/${Date.now()}-${safeBasename(req.file.originalname)}`;
+    // ── Image compression ──────────────────────────────────────────────────
+    // Convert to WebP and cap at 2000 px wide.  Quality 85 retains film grain
+    // and high-contrast detail while giving meaningful size reduction vs. the
+    // original JPEG/PNG/HEIC.
+    let optimizedBuffer;
+    try {
+      optimizedBuffer = await compressImage(req.file.buffer);
+    } catch (sharpErr) {
+      console.error("sharp compression failed, falling back to original buffer:", sharpErr);
+      // Graceful degradation: upload the original if sharp unexpectedly fails
+      optimizedBuffer = req.file.buffer;
+    }
+    // ──────────────────────────────────────────────────────────────────────
+
+    // Always store with .webp extension so the browser picks the right MIME type
+    const originalBase = safeBasename(req.file.originalname).replace(/\.[^.]+$/, "");
+    const objectPath = `${userId}/${Date.now()}-${originalBase}.webp`;
 
     const { error: uploadError } = await admin.storage
       .from(BUCKET)
-      .upload(objectPath, req.file.buffer, {
-        contentType: req.file.mimetype || "application/octet-stream",
+      .upload(objectPath, optimizedBuffer, {
+        contentType: "image/webp",
         upsert: false,
       });
 
@@ -72,7 +111,7 @@ async function upload(req, res, next) {
       .select("display_order")
       .order("display_order", { ascending: false })
       .limit(1);
-    
+
     const maxDisplayOrder = maxOrderData && maxOrderData.length > 0 ? maxOrderData[0].display_order : 0;
     const newDisplayOrder = maxDisplayOrder + 1;
 
@@ -129,7 +168,6 @@ async function deletePhoto(req, res, next) {
     }
 
     // 检查权限 - 只有上传者或 admin 可以删除
-    // 这里简化处理：只允许上传者删除（可根据需要加入 admin 角色检查）
     if (photo.uploaded_by !== userId) {
       return res.status(403).json({ error: "Permission denied" });
     }
@@ -167,13 +205,13 @@ async function deletePhoto(req, res, next) {
 async function updatePhotoOrder(req, res, next) {
   try {
     const { orders } = req.body; // Array of { id, display_order }
-    
+
     if (!Array.isArray(orders) || orders.length === 0) {
       return res.status(400).json({ error: "Invalid orders array" });
     }
 
     const admin = getSupabaseAdmin();
-    
+
     // 批量更新 display_order
     const updates = orders.map(item => ({
       id: item.id,
@@ -185,7 +223,7 @@ async function updatePhotoOrder(req, res, next) {
         .from("photos")
         .update({ display_order: update.display_order })
         .eq("id", update.id);
-      
+
       if (error) {
         return res.status(502).json({ error: error.message });
       }

@@ -1,4 +1,5 @@
 const path = require("path");
+const sharp = require("sharp");
 const { supabaseAnon, getSupabaseAdmin } = require("../config/supabase");
 
 const BUCKET = "bibliography_covers";
@@ -6,6 +7,29 @@ const BUCKET = "bibliography_covers";
 function safeBasename(originalname) {
   const base = path.basename(originalname || "cover").replace(/[^\w.\-]+/g, "_");
   return base.slice(0, 180) || "cover";
+}
+
+/**
+ * Compress and convert a cover image buffer to WebP using sharp.
+ *
+ * Bibliography covers are typically scanned book jackets — detailed, high-
+ * contrast artwork that benefits from the same grain-preserving settings used
+ * for gallery photos.
+ *
+ *  - Width cap: 1200 px (covers are displayed at ≤ 300 px wide in the grid,
+ *    2× for HiDPI screens, plus a bit of headroom for the detail modal)
+ *  - Quality 85: retains texture and typography legibility
+ *  - effort 6: better compression ratio without quality loss
+ */
+async function compressCover(inputBuffer) {
+  return sharp(inputBuffer)
+    .resize({
+      width: 1200,
+      withoutEnlargement: true,
+      fit: "inside",
+    })
+    .webp({ quality: 85, effort: 6 })
+    .toBuffer();
 }
 
 async function list(req, res, next) {
@@ -58,12 +82,23 @@ async function add(req, res, next) {
 
     // Upload cover image if provided
     if (req.file?.buffer) {
-      const objectPath = `${Date.now()}-${safeBasename(req.file.originalname)}`;
+      // ── Image compression ────────────────────────────────────────────────
+      let optimizedBuffer;
+      try {
+        optimizedBuffer = await compressCover(req.file.buffer);
+      } catch (sharpErr) {
+        console.error("sharp compression failed, falling back to original buffer:", sharpErr);
+        optimizedBuffer = req.file.buffer;
+      }
+      // ────────────────────────────────────────────────────────────────────
+
+      const originalBase = safeBasename(req.file.originalname).replace(/\.[^.]+$/, "");
+      const objectPath = `${Date.now()}-${originalBase}.webp`;
 
       const { error: uploadError } = await admin.storage
         .from(BUCKET)
-        .upload(objectPath, req.file.buffer, {
-          contentType: req.file.mimetype || "application/octet-stream",
+        .upload(objectPath, optimizedBuffer, {
+          contentType: "image/webp",
           upsert: false,
         });
 
@@ -71,11 +106,10 @@ async function add(req, res, next) {
         return res.status(502).json({ error: uploadError.message });
       }
 
-      // Generate public URL using the Supabase URL pattern
       const supabaseUrl = process.env.SUPABASE_URL;
       cover_url = `${supabaseUrl}/storage/v1/object/public/${BUCKET}/${objectPath}`;
 
-      console.log("Generated Cover URL:", cover_url); // Debug log
+      console.log("Generated Cover URL:", cover_url);
     }
 
     // 获取现有书籍的最大 display_order，新书籍排在最前面
@@ -84,7 +118,7 @@ async function add(req, res, next) {
       .select("display_order")
       .order("display_order", { ascending: false })
       .limit(1);
-    
+
     const maxDisplayOrder = maxOrderData && maxOrderData.length > 0 ? maxOrderData[0].display_order : 0;
     const newDisplayOrder = maxDisplayOrder + 1;
 
@@ -181,20 +215,20 @@ async function remove(req, res, next) {
 async function updateOrder(req, res, next) {
   try {
     const { orders } = req.body; // Array of { id, display_order }
-    
+
     if (!Array.isArray(orders) || orders.length === 0) {
       return res.status(400).json({ error: "Invalid orders array" });
     }
 
     const admin = getSupabaseAdmin();
-    
+
     // 批量更新 display_order
     for (const { id, display_order } of orders) {
       const { error } = await admin
         .from("bibliography")
         .update({ display_order })
         .eq("id", id);
-      
+
       if (error) {
         return res.status(502).json({ error: error.message });
       }
