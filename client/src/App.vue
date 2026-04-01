@@ -11,8 +11,8 @@ const ui = useUiStore();
     <!-- Global Header -->
     <header class="global-header">
       <RouterLink to="/" class="site-title">
-        <span class="title-text">P H O T O</span>
-        <span class="title-text">G A L L E R Y</span>
+        <span class="title-text">DWT</span>
+    
       </RouterLink>
       <button
         class="menu-btn"
@@ -20,7 +20,7 @@ const ui = useUiStore();
         :aria-expanded="ui.menuOpen"
         aria-label="Toggle menu"
       >
-        MENU
+        X
       </button>
     </header>
 

@@ -8,7 +8,6 @@ const photosRoutes = require("./routes/photosRoutes");
 const bibliographyRoutes = require("./routes/bibliographyRoutes");
 const biblioCategoryRoutes = require("./routes/biblioCategoryRoutes");
 const galleryCategoryRoutes = require("./routes/galleryCategoryRoutes");
-const storageRoutes = require("./routes/storageRoutes");
 const { errorHandler } = require("./middleware/errorHandler");
 
 const app = express();
@@ -46,7 +45,6 @@ app.use("/api/photos", photosRoutes);
 app.use("/api/gallery-categories", galleryCategoryRoutes);
 app.use("/api/bibliography", bibliographyRoutes);
 app.use("/api/biblio-categories", biblioCategoryRoutes);
-app.use("/api/storage", storageRoutes);
 
 app.use(errorHandler);
 

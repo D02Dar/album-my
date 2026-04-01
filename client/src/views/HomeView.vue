@@ -1,7 +1,6 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { useGalleryStore } from "../stores/gallery";
-import { getProxyImageUrl } from "../utils/imageProxy";
 
 const gallery = useGalleryStore();
 const featuredPhotos = ref([]);
@@ -48,7 +47,7 @@ function getGridSpan(index) {
       >
         <div class="grid-image-wrapper">
           <img
-            :src="getProxyImageUrl(photo.url)"
+            :src="photo.url"
             :alt="photo.title || 'Featured photo'"
             class="grid-image"
           />
@@ -69,17 +68,17 @@ function getGridSpan(index) {
     <!-- Hero Typography Overlay -->
     <div class="hero-typography">
       <div class="hero-main">
-        <span class="hero-line">MORIYAMA</span>
-        <span class="hero-line">EDITORIAL</span>
+        <span class="hero-line">愛 密 集</span>
+    
       </div>
       <div class="hero-corner hero-corner--top-right">
-        <span class="corner-text">MENU</span>
+        <span class="corner-text">X</span>
       </div>
       <div class="hero-corner hero-corner--bottom-left">
-        <span class="corner-text small">PHOTO ESSAY</span>
+        <span class="corner-text small">DWT</span>
       </div>
       <div class="hero-corner hero-corner--bottom-right">
-        <span class="corner-text small">©2024</span>
+        <span class="corner-text small">©2026</span>
       </div>
     </div>
 

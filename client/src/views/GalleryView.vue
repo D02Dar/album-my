@@ -2,7 +2,6 @@
 import { ref, onMounted, computed } from "vue";
 import { useAuthStore } from "../stores/auth";
 import { useGalleryStore } from "../stores/gallery";
-import { getProxyImageUrl } from "../utils/imageProxy";
 import GalleryAccordion from "../components/GalleryAccordion.vue";
 import UploadModal from "../components/UploadModal.vue";
 
@@ -343,7 +342,7 @@ function onUploaded() {
             @drop="onDrop($event, photo.id)"
           >
             <div class="drag-handle">≡</div>
-            <img :src="getProxyImageUrl(photo.url)" :alt="photo.title" class="photo-thumb" />
+            <img :src="photo.url" :alt="photo.title" class="photo-thumb" />
             <div class="photo-info">
               <div class="photo-title">{{ photo.title || "无标题" }}</div>
               <div class="photo-category">

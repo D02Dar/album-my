@@ -1,6 +1,5 @@
 <script setup>
 import { computed, ref } from "vue";
-import { getProxyImageUrl } from "../utils/imageProxy";
 import LightboxModal from "./LightboxModal.vue";
 
 const props = defineProps({
@@ -24,7 +23,7 @@ function closeModal() {
 
 function openLightbox() {
   if (props.item?.cover_url) {
-    lightboxSrc.value = getProxyImageUrl(props.item.cover_url);
+    lightboxSrc.value = props.item.cover_url;
     lightboxOpen.value = true;
   }
 }
@@ -49,7 +48,7 @@ function openLightbox() {
               :aria-label="`查看 ${item?.title} 大图`"
             >
               <img
-                :src="getProxyImageUrl(item.cover_url)"
+                :src="item.cover_url"
                 :alt="item?.title"
                 class="image"
               />

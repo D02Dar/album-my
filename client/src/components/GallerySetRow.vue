@@ -1,6 +1,5 @@
 <script setup>
 import { ref } from "vue";
-import { getProxyImageUrl } from "../utils/imageProxy";
 
 defineProps({
   setItem: { type: Object, required: true },
@@ -15,7 +14,7 @@ function onThumbClick(photo, e) {
   e.preventDefault();
   e.stopPropagation();
   emit("open-lightbox", {
-    src: getProxyImageUrl(photo.full_url),
+    src: photo.full_url,
     alt: photo.alt || "",
   });
 }
@@ -47,7 +46,7 @@ function toggleExpanded() {
             class="thumb"
             @click="onThumbClick(p, $event)"
           >
-            <img :src="getProxyImageUrl(p.thumb_url)" :alt="p.alt || ''" loading="lazy" />
+            <img :src="p.thumb_url" :alt="p.alt || ''" loading="lazy" />
           </button>
         </div>
       </div>
