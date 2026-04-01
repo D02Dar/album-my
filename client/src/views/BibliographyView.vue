@@ -1273,7 +1273,7 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(253, 253, 253, 0);
   display: flex;
   align-items: center;
   justify-content: center;
