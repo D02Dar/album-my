@@ -28,6 +28,9 @@ const draggedOverPhotoId = ref(null);
 // 快速排序相关
 const sortingPhotoId = ref(null);
 
+// 首页展示相关
+const togglingFeaturedPhotoId = ref(null);
+
 onMounted(() => {
   gallery.fetchPhotos();
   gallery.fetchCategories();
@@ -75,6 +78,16 @@ const filteredPhotos = computed(() => {
     return gallery.photos;
   }
   return gallery.photos.filter(p => p.category_id === adminFilterCategory.value);
+});
+
+// 首页展示相关的计算属性
+const featuredPhotosCount = computed(() => {
+  return gallery.photos.filter(p => p.is_home_featured).length;
+});
+
+const homePageSlots = 8; // Bento grid 最多显示 8 张
+const remainingHomeSlots = computed(() => {
+  return Math.max(0, homePageSlots - featuredPhotosCount.value);
 });
 
 async function deletePhoto(photoId) {
@@ -203,6 +216,20 @@ async function movePhotoToBottom(photoId) {
   }
 }
 
+// 切换照片的首页展示状态
+async function toggleFeatured(photoId) {
+  try {
+    togglingFeaturedPhotoId.value = photoId;
+    const response = await gallery.toggleFeatured(photoId);
+    await gallery.fetchPhotos();
+  } catch (e) {
+    console.error("Failed to toggle featured:", e);
+    alert("操作失败，请重试");
+  } finally {
+    togglingFeaturedPhotoId.value = null;
+  }
+}
+
 function onUploaded() {
   gallery.fetchPhotos();
   selectedCategory.value = "";
@@ -226,6 +253,15 @@ function onUploaded() {
     <!-- 管理面板（仅登陆用户可见） -->
     <div v-if="auth.isAuthenticated && showAdmin" class="admin-panel">
       <h2 class="admin-panel__title">管理</h2>
+      
+      <!-- 首页展示状态提示 -->
+      <div class="featured-status-bar">
+        <span class="status-label">首页展示:</span>
+        <span class="status-count">{{ featuredPhotosCount }}/{{ homePageSlots }}</span>
+        <span class="status-remaining" :class="{ full: remainingHomeSlots === 0 }">
+          {{ remainingHomeSlots > 0 ? `还可添加 ${remainingHomeSlots} 张` : '已满' }}
+        </span>
+      </div>
       
       <!-- 分类管理 -->
       <div class="admin-section">
@@ -316,6 +352,16 @@ function onUploaded() {
             </div>
             <!-- 快速排序按钮 -->
             <div class="photo-actions">
+              <button
+                type="button"
+                class="btn-featured"
+                :class="{ active: photo.is_home_featured }"
+                :title="photo.is_home_featured ? '移除首页展示' : '添加到首页展示'"
+                :disabled="togglingFeaturedPhotoId === photo.id"
+                @click="toggleFeatured(photo.id)"
+              >
+                {{ togglingFeaturedPhotoId === photo.id ? "..." : "⭐" }}
+              </button>
               <button
                 type="button"
                 class="btn-sort"
@@ -419,6 +465,43 @@ function onUploaded() {
   text-transform: uppercase;
   color: #666;
   margin: 0 0 2rem 0;
+}
+
+.featured-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 2px;
+  margin-bottom: 2rem;
+  font-size: 0.75rem;
+  font-weight: 300;
+  letter-spacing: 0.05em;
+}
+
+.status-label {
+  color: #888;
+  text-transform: uppercase;
+}
+
+.status-count {
+  color: #ffd700;
+  font-weight: 500;
+  padding: 0.2rem 0.5rem;
+  background: rgba(255, 215, 0, 0.1);
+  border-radius: 2px;
+}
+
+.status-remaining {
+  color: #6cc;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.status-remaining.full {
+  color: #ff6b6b;
 }
 
 .admin-section {
@@ -653,6 +736,36 @@ function onUploaded() {
 
 .btn-sort:disabled {
   opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.btn-featured {
+  padding: 0.5rem 0.8rem;
+  background: transparent;
+  color: #666;
+  border: 1px solid #333;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.btn-featured:hover:not(:disabled) {
+  color: #ffd700;
+  border-color: #ffd700;
+  background: rgba(255, 215, 0, 0.1);
+}
+
+.btn-featured.active {
+  color: #ffd700;
+  border-color: #ffd700;
+  background: rgba(255, 215, 0, 0.1);
+}
+
+.btn-featured:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
 }
 

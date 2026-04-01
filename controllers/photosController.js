@@ -20,6 +20,7 @@ async function list(req, res, next) {
         created_at,
         display_order,
         uploaded_by,
+        is_home_featured,
         gallery_categories:category_id (
           id,
           name
@@ -92,6 +93,7 @@ async function upload(req, res, next) {
         created_at,
         display_order,
         uploaded_by,
+        is_home_featured,
         gallery_categories:category_id (
           id,
           name
@@ -195,4 +197,71 @@ async function updatePhotoOrder(req, res, next) {
   }
 }
 
-module.exports = { list, upload, deletePhoto, updatePhotoOrder };
+// 获取首页展示的照片
+async function listFeatured(req, res, next) {
+  try {
+    const { data, error } = await supabaseAnon
+      .from("photos")
+      .select(`
+        id,
+        url,
+        title,
+        category_id,
+        created_at,
+        display_order,
+        uploaded_by,
+        is_home_featured,
+        gallery_categories:category_id (
+          id,
+          name
+        )
+      `)
+      .eq("is_home_featured", true)
+      .order("display_order", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      return res.status(502).json({ error: error.message });
+    }
+    return res.json({ photos: data || [] });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// 切换照片的首页展示状态
+async function toggleFeatured(req, res, next) {
+  try {
+    const { id } = req.params;
+    const admin = getSupabaseAdmin();
+
+    // 获取当前照片的 is_home_featured 状态
+    const { data: photo, error: fetchError } = await admin
+      .from("photos")
+      .select("id, is_home_featured")
+      .eq("id", id)
+      .single();
+
+    if (fetchError || !photo) {
+      return res.status(404).json({ error: "Photo not found" });
+    }
+
+    // 切换状态
+    const newStatus = !photo.is_home_featured;
+
+    const { error: updateError } = await admin
+      .from("photos")
+      .update({ is_home_featured: newStatus })
+      .eq("id", id);
+
+    if (updateError) {
+      return res.status(502).json({ error: updateError.message });
+    }
+
+    return res.json({ success: true, is_home_featured: newStatus });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { list, upload, deletePhoto, updatePhotoOrder, listFeatured, toggleFeatured };

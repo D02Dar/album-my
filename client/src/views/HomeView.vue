@@ -1,222 +1,450 @@
 <script setup>
-import { ref, onMounted, computed } from "vue";
-import api from "../api"; // 确保你的项目里有配置好的 api 实例
+import { ref, onMounted } from "vue";
+import { useGalleryStore } from "../stores/gallery";
+import { getProxyImageUrl } from "../utils/imageProxy";
 
-// 存储从后端获取的主页推荐图片
+const gallery = useGalleryStore();
 const featuredPhotos = ref([]);
+const loading = ref(true);
 
-// 默认兜底的高级占位图（完美适配这个 7 格排版）
-const defaultPhotos = [
-  { id: '1', url: 'https://images.unsplash.com/photo-1549488331-48350163359d?w=800&fit=crop' },
-  { id: '2', url: 'https://images.unsplash.com/photo-1563220473-b265691d1e4e?w=800&fit=crop' },
-  { id: '3', url: 'https://images.unsplash.com/photo-1533105079780-92b9be482077?w=800&fit=crop' },
-  { id: '4', url: 'https://images.unsplash.com/photo-1549887552-cb1071d3e5ca?w=1000&fit=crop' },
-  { id: '5', url: 'https://images.unsplash.com/photo-1628189689408-592a3b022143?w=800&fit=crop' },
-  { id: '6', url: 'https://images.unsplash.com/photo-1551334787-21e6bd3ab135?w=800&fit=crop' },
-  { id: '7', url: 'https://images.unsplash.com/photo-1511407397940-d57f68e81203?w=800&fit=crop' }
-];
-
-// 获取主页推荐图片
-const fetchFeaturedPhotos = async () => {
+onMounted(async () => {
   try {
-    // 假设你之后会在后端实现这个接口：只拉取 is_home_featured = true 的图片
-    const response = await api.get('/api/photos/featured');
-    if (response.data && response.data.length > 0) {
-      featuredPhotos.value = response.data;
-    }
-  } catch (error) {
-    console.log("Using default editorial images (API not ready or empty)");
+    featuredPhotos.value = await gallery.fetchFeatured();
+  } catch (e) {
+    console.error("Failed to load featured photos:", e);
+  } finally {
+    loading.value = false;
   }
-};
-
-// 计算属性：如果有真实数据就用前 7 张，否则用兜底图。保证排版不崩。
-const displayPhotos = computed(() => {
-  const photosToUse = featuredPhotos.value.length > 0 ? featuredPhotos.value : defaultPhotos;
-  return photosToUse.slice(0, 7); // 严格截取 7 张以适配 CSS Grid 的 nth-child
 });
 
-onMounted(() => {
-  fetchFeaturedPhotos();
-});
+// 定义网格的 span 规则以创建 bento 布局变化
+function getGridSpan(index) {
+  const spans = [
+    { row: 2, col: 2 }, // 0
+    { row: 1, col: 1 }, // 1
+    { row: 1, col: 1 }, // 2
+    { row: 2, col: 1 }, // 3
+    { row: 1, col: 2 }, // 4
+    { row: 1, col: 1 }, // 5
+    { row: 2, col: 2 }, // 6
+    { row: 1, col: 1 }, // 7
+  ];
+  return spans[index % spans.length];
+}
 </script>
 
 <template>
-  <div class="editorial-home">
-    <div class="corner-text top-left">MORIYAMA / EDITORIAL</div>
-    
-    <div class="corner-text top-right">MENU</div>
-    
-    <div class="corner-text bottom-left">LTD. EDITION VOL 01</div>
-
-    <main class="editorial-grid">
-      <div 
-        v-for="photo in displayPhotos" 
-        :key="photo.id" 
-        class="grid-item"
+  <div class="home-view">
+    <!-- Editorial Bento Grid -->
+    <div class="editorial-grid">
+      <div
+        v-for="(photo, index) in featuredPhotos"
+        :key="photo.id"
+        class="grid-cell"
+        :style="{
+          'grid-column': `span ${getGridSpan(index).col}`,
+          'grid-row': `span ${getGridSpan(index).row}`,
+        }"
       >
-        <img :src="photo.url || photo.image_url" :alt="photo.title || 'Editorial Photography'">
+        <div class="grid-image-wrapper">
+          <img
+            :src="getProxyImageUrl(photo.url)"
+            :alt="photo.title || 'Featured photo'"
+            class="grid-image"
+          />
+          <div class="grid-overlay" />
+        </div>
+        <div v-if="photo.title" class="grid-caption">
+          {{ photo.title }}
+        </div>
       </div>
-    </main>
 
-    <div class="hero-overlay">
-      <h1 class="hero-title">愛 密 集</h1>
-      <div class="hero-subtitle">FRAGMENTS OF TIME & SPACE</div>
+      <!-- 如果没有图片，显示占位符 -->
+      <div v-if="featuredPhotos.length === 0" class="grid-empty">
+        <p class="empty-text">No featured photos yet</p>
+        <p class="empty-subtext">Visit the gallery to add images to the home page</p>
+      </div>
+    </div>
+
+    <!-- Hero Typography Overlay -->
+    <div class="hero-typography">
+      <div class="hero-main">
+        <span class="hero-line">MORIYAMA</span>
+        <span class="hero-line">EDITORIAL</span>
+      </div>
+      <div class="hero-corner hero-corner--top-right">
+        <span class="corner-text">MENU</span>
+      </div>
+      <div class="hero-corner hero-corner--bottom-left">
+        <span class="corner-text small">PHOTO ESSAY</span>
+      </div>
+      <div class="hero-corner hero-corner--bottom-right">
+        <span class="corner-text small">©2024</span>
+      </div>
+    </div>
+
+    <!-- Grain texture overlay -->
+    <div class="grain-texture" />
+
+    <!-- Load indicator -->
+    <div v-if="loading" class="loading-indicator">
+      <div class="spinner" />
     </div>
   </div>
 </template>
 
 <style scoped>
-.editorial-home {
-  position: relative;
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600&display=swap');
+
+.home-view {
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: #050505;
-  color: #fff;
+  background: #0a0a0a;
   overflow: hidden;
-  /* 抵消如果 App.vue 有全局 padding 的影响 */
   margin-left: calc(-50vw + 50%);
 }
 
-/* 极简编辑排版：边角小字 */
-.corner-text { 
-  position: absolute; /* 这里用 absolute 限制在组件内 */
-  font-size: 0.6rem; 
-  letter-spacing: 4px; 
-  color: #555; 
-  text-transform: uppercase; 
-  z-index: 100; 
-}
-
-.top-left { 
-  top: 2rem; 
-  left: 2rem; 
-}
-
-.top-right { 
-  top: 2rem; 
-  right: 2rem; 
-  display: flex; 
-  align-items: center; 
-  gap: 10px; 
-  cursor: pointer; 
-  color: #888; 
-  transition: color 0.3s;
-}
-
-.top-right:hover { 
-  color: #fff; 
-}
-
-.top-right::after { 
-  content: ''; 
-  width: 20px; 
-  height: 1px; 
-  background: currentColor; 
-}
-
-.bottom-left { 
-  bottom: 2rem; 
-  left: 2rem; 
-  writing-mode: vertical-rl; 
-  transform: rotate(180deg); 
-}
-
-/* 错落有致的背景图片网格 */
+/* Editorial Grid */
 .editorial-grid {
-  position: absolute; 
-  top: 0; 
-  left: 0; 
-  width: 100%; 
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
   height: 100%;
   display: grid;
-  grid-template-columns: repeat(4, 1fr); /* 4列基础网格 */
-  grid-template-rows: repeat(3, 1fr);    /* 3行基础网格 */
-  gap: 2px; /* 图片之间的极细缝隙 */
-  background-color: #111;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 2px;
+  background-color: #0a0a0a;
   z-index: 1;
+  overflow: hidden;
 }
 
-/* 单个图片容器 */
-.grid-item { 
-  position: relative; 
-  overflow: hidden; 
-  background: #1a1a1a; 
+/* Grid cells */
+.grid-cell {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
 }
 
-.grid-item img { 
-  width: 100%; 
-  height: 100%; 
-  object-fit: cover; 
-  filter: grayscale(100%) brightness(0.4) contrast(1.2); /* 压暗，确保文字清晰 */
-  transition: filter 0.8s ease, transform 0.8s ease; 
-}
-
-/* 悬停时微微亮起并放大，暗示图片质感 */
-.grid-item:hover img { 
-  filter: grayscale(100%) brightness(0.7) contrast(1.2); 
-  transform: scale(1.03); 
-}
-
-/* === 核心：打破死板，让特定的图片跨行跨列 === */
-/* 第1张图，纵向跨2行 */
-.grid-item:nth-child(1) { grid-row: span 2; }
-/* 第4张图，横向跨2列 */
-.grid-item:nth-child(4) { grid-column: span 2; }
-/* 第6张图，更大的一块 */
-.grid-item:nth-child(6) { grid-row: span 2; }
-
-/* 中央巨大悬浮文字 */
-.hero-overlay {
-  position: absolute; 
-  top: 0; 
-  left: 0; 
-  width: 100%; 
+.grid-image-wrapper {
+  position: relative;
+  width: 100%;
   height: 100%;
-  display: flex; 
-  flex-direction: column; 
-  justify-content: center; 
-  align-items: center;
-  z-index: 10; 
-  pointer-events: none; /* 防止挡住图片的 Hover 效果 */
+  overflow: hidden;
 }
 
-.hero-title {
-  font-size: 8rem; /* 巨大字号 */
+.grid-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  /* CRITICAL: Heavily darken images */
+  filter: grayscale(100%) brightness(0.3) contrast(1.2);
+  transition: filter 0.5s cubic-bezier(0.4, 0, 0.2, 1), transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  display: block;
+  background: #000;
+}
+
+/* Hover effect: brighten and scale */
+.grid-cell:hover .grid-image {
+  filter: grayscale(100%) brightness(0.5) contrast(1.3);
+  transform: scale(1.03);
+}
+
+/* Grid overlay for depth */
+.grid-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    135deg,
+    rgba(0, 0, 0, 0.3) 0%,
+    rgba(0, 0, 0, 0) 50%,
+    rgba(0, 0, 0, 0.2) 100%
+  );
+  pointer-events: none;
+}
+
+/* Grid caption */
+.grid-caption {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  right: 1rem;
+  font-size: 0.8rem;
+  color: #fff;
+  font-weight: 300;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+.grid-cell:hover .grid-caption {
+  opacity: 1;
+}
+
+/* Empty state */
+.grid-empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  z-index: 100;
+  color: #666;
+}
+
+.empty-text {
+  font-size: 1.5rem;
+  font-weight: 300;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+
+.empty-subtext {
+  font-size: 0.85rem;
+  color: #555;
+  letter-spacing: 0.02em;
+}
+
+/* Hero Typography Overlay */
+.hero-typography {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.hero-main {
+  position: fixed;
+  top: 50%;
+  left: 5%;
+  transform: translateY(-50%);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 8rem;
   font-weight: 200;
-  letter-spacing: 4vw; /* 极宽的字母间距，中文排版适当减小以防断裂 */
-  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.08);
+  line-height: 0.95;
   text-transform: uppercase;
-  margin-right: -4vw; /* 修正因为 letter-spacing 导致的整体偏移 */
-  display: flex;
-  align-items: center;
-  text-shadow: 0 10px 30px rgba(0,0,0,0.5); /* 稍微加点阴影增强层次 */
+  user-select: none;
 }
 
-.hero-subtitle {
-  font-size: 0.6rem; 
-  letter-spacing: 8px; 
-  color: #999; 
-  margin-top: 1.5rem; 
-  text-transform: uppercase;
+.hero-line {
+  display: block;
 }
 
-/* 移动端适配 */
+/* Corner typography */
+.hero-corner {
+  position: fixed;
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.15);
+  font-weight: 300;
+  font-family: 'Space Grotesk', sans-serif;
+  user-select: none;
+}
+
+.hero-corner--top-right {
+  top: 2.5rem;
+  right: 2.5rem;
+}
+
+.hero-corner--bottom-left {
+  bottom: 2.5rem;
+  left: 2.5rem;
+}
+
+.hero-corner--bottom-right {
+  bottom: 2.5rem;
+  right: 2.5rem;
+}
+
+.corner-text {
+  display: block;
+}
+
+.corner-text.small {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.1);
+  margin-top: 0.3rem;
+}
+
+/* Grain texture overlay */
+.grain-texture {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' /%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23noiseFilter)' opacity='0.06'/%3E%3C/svg%3E");
+  background-size: 300px 300px;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  z-index: 11;
+  opacity: 0.2;
+}
+
+/* Loading indicator */
+.loading-indicator {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 100;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top: 2px solid #fff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .editorial-grid {
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+  }
+
+  .hero-main {
+    font-size: 5rem;
+    left: 3%;
+  }
+
+  .hero-corner {
+    font-size: 0.65rem;
+  }
+
+  .hero-corner--top-right {
+    top: 2rem;
+    right: 2rem;
+  }
+
+  .hero-corner--bottom-left {
+    bottom: 2rem;
+    left: 2rem;
+  }
+
+  .hero-corner--bottom-right {
+    bottom: 2rem;
+    right: 2rem;
+  }
+}
+
 @media (max-width: 768px) {
-  .editorial-grid { 
-    grid-template-columns: repeat(2, 1fr); 
-    grid-template-rows: repeat(4, 1fr); 
+  .editorial-grid {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 1px;
   }
-  .grid-item:nth-child(1) { grid-row: span 1; }
-  .grid-item:nth-child(4) { grid-column: span 1; grid-row: span 2; }
-  
-  .hero-title { 
-    font-size: 4rem; 
-    letter-spacing: 4vw; 
-    margin-right: -4vw; 
+
+  .hero-main {
+    font-size: 3rem;
+    left: 2%;
+    top: 45%;
+    letter-spacing: 0.02em;
   }
-  .hero-subtitle {
+
+  .hero-corner {
+    font-size: 0.55rem;
+  }
+
+  .hero-corner--top-right {
+    top: 1.5rem;
+    right: 1.5rem;
+  }
+
+  .hero-corner--bottom-left {
+    bottom: 1.5rem;
+    left: 1.5rem;
+  }
+
+  .hero-corner--bottom-right {
+    bottom: 1.5rem;
+    right: 1.5rem;
+  }
+
+  .grid-caption {
+    font-size: 0.7rem;
+    bottom: 0.75rem;
+    left: 0.75rem;
+  }
+
+  .empty-text {
+    font-size: 1.2rem;
+  }
+
+  .empty-subtext {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .editorial-grid {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 1px;
+  }
+
+  .hero-main {
+    font-size: 2rem;
+    left: 1.5%;
+    letter-spacing: 0.01em;
+  }
+
+  .hero-corner {
     font-size: 0.5rem;
-    letter-spacing: 4px;
+  }
+
+  .hero-corner--top-right {
+    top: 1rem;
+    right: 1rem;
+  }
+
+  .hero-corner--bottom-left {
+    bottom: 1rem;
+    left: 1rem;
+  }
+
+  .hero-corner--bottom-right {
+    bottom: 1rem;
+    right: 1rem;
+  }
+
+  .grid-caption {
+    font-size: 0.6rem;
+    bottom: 0.5rem;
+    left: 0.5rem;
+    right: 0.5rem;
+  }
+
+  .empty-text {
+    font-size: 1rem;
+  }
+
+  .empty-subtext {
+    font-size: 0.65rem;
   }
 }
 </style>

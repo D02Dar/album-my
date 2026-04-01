@@ -1,6 +1,6 @@
 const express = require("express");
 const multer = require("multer");
-const { list, upload, deletePhoto, updatePhotoOrder } = require("../controllers/photosController");
+const { list, upload, deletePhoto, updatePhotoOrder, listFeatured, toggleFeatured } = require("../controllers/photosController");
 const { requireAuth } = require("../middleware/auth");
 
 const router = express.Router();
@@ -20,8 +20,10 @@ const imageUpload = multer({
 });
 
 router.get("/", list);
+router.get("/featured", listFeatured);
 router.post("/upload", requireAuth, imageUpload.single("image"), upload);
 router.delete("/:id", requireAuth, deletePhoto);
 router.patch("/order", requireAuth, updatePhotoOrder);
+router.patch("/:id/featured", requireAuth, toggleFeatured);
 
 module.exports = router;

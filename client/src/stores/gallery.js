@@ -93,6 +93,26 @@ export const useGalleryStore = defineStore("gallery", () => {
     });
   }
 
+  async function toggleFeatured(photoId) {
+    const { data } = await api.patch(`/api/photos/${photoId}/featured`);
+    // 更新本地状态
+    const photo = photos.value.find(p => p.id === photoId);
+    if (photo) {
+      photo.is_home_featured = data.is_home_featured;
+    }
+    return data;
+  }
+
+  async function fetchFeatured() {
+    try {
+      const { data } = await api.get("/api/photos/featured");
+      return data.photos ?? [];
+    } catch (e) {
+      console.error("Failed to fetch featured photos:", e);
+      return [];
+    }
+  }
+
   return {
     photos,
     categories,
@@ -104,5 +124,7 @@ export const useGalleryStore = defineStore("gallery", () => {
     uploadPhoto,
     deletePhoto,
     updatePhotoOrder,
+    toggleFeatured,
+    fetchFeatured,
   };
 });
