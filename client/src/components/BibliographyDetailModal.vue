@@ -52,7 +52,7 @@ function openLightbox() {
                 :alt="item?.title"
                 class="image"
               />
-              <span class="view-overlay">VIEW DETAILS</span>
+              <span class="view-overlay">DETAILS</span>
             </button>
             <div v-else class="no-image">No Image</div>
           </div>

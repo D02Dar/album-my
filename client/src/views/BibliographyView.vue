@@ -263,7 +263,7 @@
               @error="onImageError"
             />
             <div v-else class="cover-placeholder">No Image</div>
-            <span class="view-details-overlay">VIEW DETAILS</span>
+            <span class="view-details-overlay"></span>
           </button>
         </div>
 
