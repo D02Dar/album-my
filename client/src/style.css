@@ -1,13 +1,27 @@
 :root {
   --bg: #141414;
   --bg-deep: #111111;
-  --fg-muted: #999999;
-  --fg-bright: #eeeeee;
-  --fg-title: #999999;
-  --fg-title-hover: #eeeeee;
-  --line: #333333;
-  --line-active: #eeeeee;
+  --fg-muted: #888888;
+  --fg-bright: #dddddd;
+  --fg-title: #777777;
+  --fg-title-hover: #dddddd;
+  --line: #2a2a2a;
+  --line-active: #888888;
   --font: "Inter", system-ui, -apple-system, sans-serif;
+
+  /* Typography scale */
+  --text-xs:   0.62rem;   /* labels, meta, category tags */
+  --text-sm:   0.72rem;   /* secondary UI, captions */
+  --text-base: 0.82rem;   /* body, card titles */
+  --text-md:   0.92rem;   /* slightly larger body */
+  --text-lg:   1rem;      /* headings / section titles */
+
+  /* Letter spacing */
+  --tracking-tight:  0.02em;
+  --tracking-normal: 0.06em;
+  --tracking-wide:   0.18em;
+  --tracking-wider:  0.35em;
+  --tracking-widest: 0.5em;
 }
 
 *,
@@ -25,7 +39,7 @@ body {
   font-family: var(--font);
   font-weight: 300;
   font-size: 15px;
-  line-height: 1.5;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -54,10 +68,10 @@ button {
   border: 1px solid var(--line);
   background: transparent;
   color: var(--fg-muted);
-  padding: 0.65rem 1.25rem;
-  letter-spacing: 0.12em;
+  padding: 0.6rem 1.1rem;
+  letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
-  font-size: 0.68rem;
+  font-size: var(--text-xs);
   transition:
     background 0.2s ease,
     color 0.2s ease,
@@ -78,16 +92,37 @@ input {
   font-family: inherit;
   font-weight: 300;
   border: 1px solid var(--line);
-  padding: 0.75rem 1rem;
+  padding: 0.65rem 0.9rem;
   width: 100%;
   background: var(--bg);
   color: var(--fg-bright);
-  font-size: 0.95rem;
+  font-size: var(--text-base);
 }
 
 input:focus {
   outline: none;
   border-color: var(--line-active);
+}
+
+select {
+  font-family: inherit;
+  font-weight: 300;
+  border: 1px solid var(--line);
+  padding: 0.65rem 0.9rem;
+  background: var(--bg);
+  color: var(--fg-bright);
+  font-size: var(--text-base);
+}
+
+select:focus {
+  outline: none;
+  border-color: var(--line-active);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 300;
+  line-height: 1.4;
+  margin: 0;
 }
 
 .fade-enter-active,

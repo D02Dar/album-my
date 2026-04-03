@@ -1239,10 +1239,15 @@ onMounted(() => {
     padding: 1rem 0.75rem;
   }
 
-  .cover-container {
-    height: 160px;
-    margin-bottom: 1rem;
-  }
+ .cover-container {
+  width: 100%;
+  aspect-ratio: 2 / 3; /* 🔑 核心魔法：强制锁定为 2:3 的竖版书封比例！ */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
 
   .mobile-order-item {
     grid-template-columns: 70px 1fr 50px;
