@@ -1,7 +1,6 @@
 const express = require("express");
 const multer = require("multer");
-const { list, add, remove, updateOrder } = require("../controllers/bibliographyController");
-const { requireAuth } = require("../middleware/auth");
+const { list, add, remove, updateOrder, transformImage } = require('../controllers/bibliographyController');const { requireAuth } = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -36,5 +35,6 @@ router.get("/", list);
 router.post("/", requireAuth, coverUpload.single("cover"), add);
 router.delete("/:id", requireAuth, remove);
 router.patch("/order", requireAuth, updateOrder);
-
+// Add this line with the other protected routes:
+router.patch('/:id/transform-image', requireAuth, transformImage)
 module.exports = router;

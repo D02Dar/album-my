@@ -239,5 +239,61 @@ async function updateOrder(req, res, next) {
     next(err);
   }
 }
+// Add this function before module.exports:
+async function transformImage(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { action } = req.body; // 'rotate-left' | 'rotate-right' | 'flip'
 
-module.exports = { list, add, remove, updateOrder };
+    if (!['rotate-left', 'rotate-right', 'flip'].includes(action)) {
+      return res.status(400).json({ error: 'Invalid action' });
+    }
+
+    const admin = getSupabaseAdmin();
+    const { data: record, error: fetchError } = await admin
+      .from('bibliography')
+      .select('cover_url')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !record?.cover_url) {
+      return res.status(404).json({ error: 'Record or cover image not found' });
+    }
+
+    const response = await fetch(record.cover_url);
+    if (!response.ok) throw new Error('Failed to fetch image');
+    const buffer = Buffer.from(await response.arrayBuffer());
+
+    let sharpInstance = sharp(buffer);
+    if (action === 'rotate-right') sharpInstance = sharpInstance.rotate(90);
+    else if (action === 'rotate-left') sharpInstance = sharpInstance.rotate(-90);
+    else if (action === 'flip') sharpInstance = sharpInstance.flop();
+
+    const newBuffer = await sharpInstance.webp({ quality: 85 }).toBuffer();
+    const newObjectPath = `${Date.now()}_transformed.webp`;
+
+    const { error: uploadError } = await admin.storage
+      .from(BUCKET)
+      .upload(newObjectPath, newBuffer, { contentType: 'image/webp', upsert: false });
+    if (uploadError) return res.status(502).json({ error: uploadError.message });
+
+    const newCoverUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${newObjectPath}`;
+
+    const { error: updateError } = await admin
+      .from('bibliography')
+      .update({ cover_url: newCoverUrl })
+      .eq('id', id);
+    if (updateError) return res.status(502).json({ error: updateError.message });
+
+    try {
+      const oldParts = record.cover_url.split(`/object/public/${BUCKET}/`);
+      if (oldParts.length > 1) {
+        await admin.storage.from(BUCKET).remove([decodeURIComponent(oldParts[1])]);
+      }
+    } catch (e) { console.warn('Old file delete failed:', e.message); }
+
+    return res.json({ cover_url: newCoverUrl });
+  } catch (err) { next(err); }
+}
+
+module.exports = { list, add, remove, updateOrder, transformImage };

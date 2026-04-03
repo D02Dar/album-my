@@ -22,6 +22,7 @@ function safeBasename(originalname) {
  */
 async function compressImage(inputBuffer) {
   return sharp(inputBuffer)
+    .rotate() 
     .resize({
       width: 2000,
       withoutEnlargement: true, // never blow up smaller images
