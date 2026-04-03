@@ -27,7 +27,7 @@
 
     <!-- Text Overlay -->
     <div class="text-overlay">
-      <div class="subtext">愛 密 集</div>
+      <div class="subtext">C'est la vie</div>
     </div>
 
     <!-- Fade-in Foreground (for depth) -->
