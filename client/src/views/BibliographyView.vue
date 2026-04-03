@@ -1,5 +1,12 @@
 <template>
   <div class="bibliography-container">
+
+    <!-- ── Cinematic transition overlay ─────────────────────────────────── -->
+    <div
+      class="memory-transition-overlay"
+      :class="{ 'is-transitioning': isTransitioning }"
+    ></div>
+
     <!-- 管理按钮 -->
     <div v-if="isAuthenticated" class="admin-controls">
       <button type="button" class="btn-admin" @click="showAdmin = !showAdmin">
@@ -263,7 +270,7 @@
               @error="onImageError"
             />
             <div v-else class="cover-placeholder">No Image</div>
-            <span class="view-details-overlay"></span>
+            <span class="view-details-overlay">VIEW DETAILS</span>
           </button>
         </div>
 
@@ -295,6 +302,23 @@
           {{ isDeletingId === item.id ? "Deleting..." : "Delete" }}
         </button>
       </div>
+
+      <!-- ── Return to Origin cell ────────────────────────────────────────── -->
+      <div
+        v-if="bibliographies.length > 0"
+        class="biblio-cell return-cell"
+        @click="triggerMemoryReturn"
+        role="button"
+        tabindex="0"
+        @keyup.enter="triggerMemoryReturn"
+        aria-label="Return to origin"
+      >
+        <div class="return-content">
+          <span class="return-text">R E T U R N<br>T O<br>O R I G I N</span>
+        </div>
+      </div>
+      <!-- ─────────────────────────────────────────────────────────────────── -->
+
     </div>
 
     <!-- Empty State -->
@@ -309,12 +333,26 @@
 
 <script setup>
 import { ref, onMounted, computed, nextTick, watch } from "vue";
+import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import BibliographyDetailModal from "../components/BibliographyDetailModal.vue";
 import api from "../api";
 
+const router = useRouter();
 const authStore = useAuthStore();
 const isAuthenticated = computed(() => authStore.isAuthenticated);
+
+// ── Cinematic return transition ──────────────────────────────────────────────
+const isTransitioning = ref(false);
+
+function triggerMemoryReturn() {
+  if (isTransitioning.value) return;
+  isTransitioning.value = true;
+  setTimeout(() => {
+    router.push("/");
+  }, 1500);
+}
+// ────────────────────────────────────────────────────────────────────────────
 
 // Data
 const bibliographies = ref([]);
@@ -403,7 +441,6 @@ const fetchBibliography = async () => {
 
     bibliographies.value = data;
 
-    // Wait for DOM to render, then initialize animation
     await nextTick();
     initializeAnimationObserver();
   } catch (error) {
@@ -462,10 +499,8 @@ const addBibliography = async () => {
 
     console.log("✅ Upload successful:", response.data.bibliography);
 
-    // Add to beginning of list
     bibliographies.value.unshift(response.data.bibliography);
 
-    // Reset form
     formData.value = {
       title: "",
       publish_year: "",
@@ -480,7 +515,6 @@ const addBibliography = async () => {
     submitMessage.value = "Bibliography added successfully!";
     submitMessageType.value = "success";
 
-    // Reinitialize animation for new items
     await nextTick();
     initializeAnimationObserver();
 
@@ -547,17 +581,14 @@ async function onDrop(e, targetBookId) {
 
   if (!sourceBook || !targetBook) return;
 
-  // 基于所有书籍列表来计算排序（不是过滤列表）
   const allBooks = [...bibliographies.value];
   const sourceIndex = allBooks.findIndex(b => b.id === draggedBookId.value);
   const targetIndex = allBooks.findIndex(b => b.id === targetBookId);
 
   if (sourceIndex === -1 || targetIndex === -1) return;
 
-  // 交换位置
   [allBooks[sourceIndex], allBooks[targetIndex]] = [allBooks[targetIndex], allBooks[sourceIndex]];
 
-  // 生成新的 display_order（基于所有书籍的新顺序）
   const orders = allBooks.map((book, index) => ({
     id: book.id,
     display_order: allBooks.length - index
@@ -565,7 +596,6 @@ async function onDrop(e, targetBookId) {
 
   try {
     await api.patch("/api/bibliography/order", { orders });
-    // 重新加载列表以确保顺序正确
     await fetchBibliography();
   } catch (e) {
     console.error("Failed to update book order:", e);
@@ -575,20 +605,17 @@ async function onDrop(e, targetBookId) {
   draggedBookId.value = null;
 }
 
-// 快速排序功能（移到顶部/底部）
 async function moveBookToTop(bookId) {
   try {
     sortingBookId.value = bookId;
     const allBooks = [...bibliographies.value];
     const currentIndex = allBooks.findIndex(b => b.id === bookId);
     
-    if (currentIndex <= 0) return; // 已在顶部
+    if (currentIndex <= 0) return;
     
-    // 将书籍移到顶部
     const [book] = allBooks.splice(currentIndex, 1);
     allBooks.unshift(book);
     
-    // 生成新的 display_order
     const orders = allBooks.map((b, index) => ({
       id: b.id,
       display_order: allBooks.length - index
@@ -610,13 +637,11 @@ async function moveBookToBottom(bookId) {
     const allBooks = [...bibliographies.value];
     const currentIndex = allBooks.findIndex(b => b.id === bookId);
     
-    if (currentIndex >= allBooks.length - 1) return; // 已在底部
+    if (currentIndex >= allBooks.length - 1) return;
     
-    // 将书籍移到底部
     const [book] = allBooks.splice(currentIndex, 1);
     allBooks.push(book);
     
-    // 生成新的 display_order
     const orders = allBooks.map((b, index) => ({
       id: b.id,
       display_order: allBooks.length - index
@@ -632,8 +657,6 @@ async function moveBookToBottom(bookId) {
   }
 }
 
-// 移动端排序：在列表中上移
-// 跳到指定位置（使用Array.splice实现）
 function jumpToPosition(currentIndex) {
   const total = bibliographies.value.length;
   const targetInput = prompt(
@@ -641,17 +664,15 @@ function jumpToPosition(currentIndex) {
     currentIndex + 1
   );
   
-  if (!targetInput) return; // 用户取消
+  if (!targetInput) return;
   
   const newIndex = parseInt(targetInput) - 1;
   
-  // 验证输入
   if (isNaN(newIndex) || newIndex < 0 || newIndex >= total || newIndex === currentIndex) {
     alert("位置无效");
     return;
   }
   
-  // 必须直接修改源数组 bibliographies.value，而不是修改 computed 属性
   const bookId = filteredBibliographies.value[currentIndex].id;
   const realCurrentIndex = bibliographies.value.findIndex(b => b.id === bookId);
   
@@ -659,13 +680,10 @@ function jumpToPosition(currentIndex) {
   bibliographies.value.splice(newIndex, 0, movedItem);
 }
 
-// 保存自定义排序
 async function saveCustomOrder() {
   try {
     sortingBookId.value = "saving";
     
-    // 关键修复：必须和后端的排序逻辑保持一致（降序：总长度 - 索引）
-    // 并且遍历完整的 bibliographies 数组
     const total = bibliographies.value.length;
     const orders = bibliographies.value.map((book, index) => ({
       id: book.id,
@@ -680,7 +698,6 @@ async function saveCustomOrder() {
     await api.patch("/api/bibliography/order", { orders });
     await fetchBibliography();
     
-    // 重置状态
     isMobileOrderMode.value = false;
     alert("排序已保存");
   } catch (e) {
@@ -690,6 +707,7 @@ async function saveCustomOrder() {
     sortingBookId.value = null;
   }
 }
+
 const processQueue = async () => {
   if (queueProcessing) return;
   queueProcessing = true;
@@ -705,7 +723,6 @@ const processQueue = async () => {
   queueProcessing = false;
 };
 
-// Initialize IntersectionObserver for staggered animation
 const initializeAnimationObserver = () => {
   const cells = gridContainer.value?.querySelectorAll(".biblio-cell");
 
@@ -736,7 +753,6 @@ const initializeAnimationObserver = () => {
   });
 };
 
-// Load data on mount
 onMounted(() => {
   console.log("🚀 BibliographyView mounted");
   fetchCategories();
@@ -745,6 +761,74 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* ── Cinematic transition overlay ─────────────────────────────────────────── */
+.memory-transition-overlay {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 99999;
+  /* backdrop-filter animates separately so blur starts slightly after the
+     black fade begins — gives a "lens losing focus" feel */
+  backdrop-filter: blur(0px);
+  transition:
+    opacity 1.4s cubic-bezier(0.4, 0, 0.2, 1),
+    backdrop-filter 1.8s ease-in-out;
+}
+
+.memory-transition-overlay.is-transitioning {
+  opacity: 1;
+  pointer-events: auto;
+  backdrop-filter: blur(18px);
+}
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+/* ── Return cell ──────────────────────────────────────────────────────────── */
+.return-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: #0a0a0a;
+  min-height: 280px;
+  transition: background 1s ease;
+  outline: none;
+}
+
+.return-cell:hover,
+.return-cell:focus-visible {
+  background: #111;
+}
+
+.return-content {
+  text-align: center;
+  padding: 2rem;
+}
+
+.return-text {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 200;
+  letter-spacing: 0.55em;
+  color: #333;
+  text-transform: uppercase;
+  line-height: 2.8;
+  /* Two properties animate on hover: spacing opens, colour lifts */
+  transition:
+    color 1s ease,
+    letter-spacing 1s ease,
+    text-shadow 1s ease;
+}
+
+.return-cell:hover .return-text,
+.return-cell:focus-visible .return-text {
+  color: #999;
+  letter-spacing: 0.75em;
+  text-shadow: 0 0 18px rgba(255, 255, 255, 0.12);
+}
+/* ─────────────────────────────────────────────────────────────────────────── */
+
 .bibliography-container {
   background: #111111;
   color: #ddd;
@@ -1160,34 +1244,10 @@ onMounted(() => {
     margin-bottom: 1rem;
   }
 
-  .biblio-meta {
-    gap: 0.5rem;
-  }
-
-  .biblio-title {
-    font-size: 0.9rem;
-  }
-
-  .biblio-author,
-  .biblio-year,
-  .biblio-category {
-    font-size: 0.75rem;
-  }
-
-  .btn-detail {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.65rem;
-  }
-
-  /* 移动端排序优化 */
   .mobile-order-item {
     grid-template-columns: 70px 1fr 50px;
     gap: 0.75rem;
     padding: 0.6rem;
-  }
-
-  .order-input {
-    width: 45px;
   }
 
   .mobile-order-list {
@@ -1199,7 +1259,6 @@ onMounted(() => {
     font-size: 0.8rem;
   }
 
-  /* 避免拖拽排序在小屏幕上显示 */
   .btn-toggle-order-mode {
     padding: 0.4rem 0.8rem;
     font-size: 0.7rem;
@@ -1273,7 +1332,7 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(253, 253, 253, 0);
+  background: rgba(0, 0, 0, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1409,7 +1468,6 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
-/* Book Drag Item Delete Button */
 .book-actions .btn-delete {
   padding: 0.5rem 0.8rem;
   background: transparent;
@@ -1493,23 +1551,6 @@ onMounted(() => {
   font-size: 0.75rem;
   color: #666;
   white-space: nowrap;
-}
-
-.order-input {
-  width: 50px;
-  padding: 0.4rem;
-  background: #1a1a1a;
-  border: 1px solid #444;
-  color: #ddd;
-  text-align: center;
-  font-size: 0.9rem;
-  border-radius: 0.2rem;
-}
-
-.order-input:focus {
-  outline: none;
-  border-color: #666;
-  background: #222;
 }
 
 .order-book-info {
