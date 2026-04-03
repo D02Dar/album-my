@@ -8,11 +8,9 @@ const ui = useUiStore();
 
 <template>
   <div class="app-root">
-    <!-- Global Header -->
     <header class="global-header">
       <RouterLink to="/" class="site-title">
         <span class="title-text">DWT</span>
-    
       </RouterLink>
       <button
         class="menu-btn"
@@ -20,17 +18,14 @@ const ui = useUiStore();
         :aria-expanded="ui.menuOpen"
         aria-label="Toggle menu"
       >
-        X
+        {{ ui.menuOpen ? "×" : "MENU" }}
       </button>
     </header>
 
-    <!-- Overlay Navigation Menu -->
     <OverlayMenu />
 
-    <!-- Main Content -->
     <RouterView />
 
-    <!-- Loading Overlay -->
     <Transition name="fade">
       <div v-if="ui.isLoading" class="loading-overlay" aria-live="polite" aria-busy="true">
         <div class="loading-spinner" />
@@ -46,13 +41,12 @@ const ui = useUiStore();
   background: #111111;
 }
 
-/* Global Header */
 .global-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  padding: 3rem 5%;
-  border-bottom: 1px solid #333;
+  padding: 1.1rem 4%;
+  border-bottom: 1px solid #1e1e1e;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -60,88 +54,61 @@ const ui = useUiStore();
 }
 
 .site-title {
-  font-size: 0.55rem;
+  font-size: 0.58rem;
   font-weight: 400;
-  letter-spacing: 0.6em;
+  letter-spacing: 0.55em;
   text-transform: uppercase;
   border: none;
   padding: 0;
-  color: #666;
+  color: #555;
   transition: color 0.2s ease;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.3rem;
   line-height: 1;
 }
 
-.site-title:hover {
-  color: #fff;
-}
-
-.title-text {
-  display: block;
-}
+.site-title:hover { color: #ccc; }
+.title-text { display: block; }
 
 .menu-btn {
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   font-weight: 400;
-  letter-spacing: 0.32em;
+  letter-spacing: 0.28em;
   text-transform: uppercase;
-  color: #666;
+  color: #555;
   background: transparent;
-  border: 1px solid #333;
-  padding: 0.6rem 1.2rem;
+  border: 1px solid #222;
+  padding: 0.45rem 0.9rem;
   cursor: pointer;
   transition: all 0.2s ease;
   border-radius: 0;
+  line-height: 1.2;
 }
 
 .menu-btn:hover {
-  color: #fff;
-  border-color: #999;
-}
-
-.menu-btn[aria-expanded="true"] {
-  color: #fff;
+  color: #ccc;
   border-color: #666;
 }
 
-/* Loading Overlay */
+.menu-btn[aria-expanded="true"] {
+  color: #ccc;
+  border-color: #555;
+}
+
 .loading-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9998;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(2px);
+  position: fixed; inset: 0; z-index: 9998;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.5);
 }
 
 .loading-spinner {
-  width: 28px;
-  height: 28px;
-  border: 2px solid rgba(238, 238, 238, 0.2);
+  width: 22px; height: 22px;
+  border: 1.5px solid rgba(238,238,238,0.15);
   border-top-color: #eeeeee;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 
-/* Transitions */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>
